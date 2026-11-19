@@ -1,0 +1,17 @@
+# build output
+build/
+dist/
+*.apk
+*.idsig
+*.dex
+
+# signing keys never go in the repo
+*.keystore
+*.jks
+
+# local / editor
+.DS_Store
+__pycache__/
+*.pyc
+.idea/
+.vscode/

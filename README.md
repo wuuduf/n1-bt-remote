@@ -1,0 +1,152 @@
+# N1 蓝牙遥控器
+
+把安卓手机变成**斐讯 N1** 盒子的蓝牙遥控器，包括开关机。盒子的固件里删掉了休眠功能，这里用一个盒子端的小助手补上了「待机 / 唤醒」。原装的斐讯蓝牙遥控器也能用这套开关机。
+
+> Turn an Android phone into a Bluetooth HID remote for the Phicomm N1 TV box (stock firmware V2.32), including power on/off. The phone acts as a standard Bluetooth HID remote via `BluetoothHidDevice`. The firmware has Android sleep removed, so a small accessibility-service helper on the box fakes a standby (screen and HDMI off, TV asleep via CEC) through the box's own root adbd. Docs are in Chinese; technical notes in [docs/findings.md](docs/findings.md).
+
+| 组件 | 装在哪 | 作用 |
+|---|---|---|
+| `n1-remote.apk` | 安卓手机（Android 9+） | 遥控器界面。所有按键都走蓝牙 HID，不需要 Wi-Fi |
+| `n1-standby-helper.apk` | N1 盒子 | 无障碍服务：收到电源键后切换「假待机」，待机时吞掉其他按键 |
+| `scripts/box.sh` | 电脑 | 通过网络 ADB 给盒子装助手、改原装遥控器的按键映射 |
+| `tools/confirm_pairing.py` | 电脑 | 没有遥控器时，替你在盒子上点「配对」 |
+
+## 测试环境
+
+- 盒子：斐讯 N1，固件 `N1_A0_V2.32_A00_0904_NS`（Android 7.1.2，内核 3.14）
+- 手机：Xiaomi 13 Ultra（Android 13）
+- 前提：盒子的网络 ADB（5555 端口）已开启。测试机出厂时就开着，以 root 运行，不需要授权。可以用 `python3 tools/adb_tcp.py <盒子IP> --probe` 检查：返回 `device::ro.product.name=p230;...` 就说明开着。
+
+其他固件（比如基于 v2.19 的第三方固件）的电源键逻辑不一样，没有测试过。
+
+## 快速开始
+
+### 1. 准备安装包
+
+从 Releases 下载 `n1-remote.apk` 和 `n1-standby-helper.apk`，或者自己编译（见下文）。
+
+### 2. 给盒子装待机助手
+
+电脑需要装 `adb`（Android platform-tools）。
+
+```bash
+scripts/box.sh <盒子IP> install-helper
+```
+
+这一步会做三件事：
+
+- 安装助手；
+- 启用它的无障碍服务；
+- 把盒子的 `power_key_definition` 从 1（关机）改成 0（无动作），这样任何遥控器发出的原生电源键都不会再把盒子关死。
+
+### 3. 手机配对
+
+1. 手机装上 `n1-remote.apk`，打开后允许「附近的设备」权限。
+2. 填上盒子的蓝牙地址：盒子 设置 → 关于 → 状态 里能看到，也可以用 `python3 tools/adb_tcp.py <盒子IP> 'settings get secure bluetooth_address'` 查。
+3. 点「连接」。手机和盒子上都会弹出配对确认，两边都点「配对」。
+   - 盒子会同时弹出两个确认框（手机版设置和 TV 版设置），最上面那个才有效。
+   - **没有遥控器的话**，先在电脑上运行下面的命令，再去手机上点「连接」。它只会给指定名字的设备点确认：
+
+     ```bash
+     python3 tools/confirm_pairing.py <盒子IP> "<手机的蓝牙名称>"
+     ```
+4. 状态变绿，显示「已连接」，就可以用了。以后打开 App 会自动重连。
+
+### 4. 开关机
+
+按红色的 OTT 键。按一下进入待机：回到桌面、画面变黑、关掉 HDMI 信号，并通过 CEC 让电视待机。再按一下恢复。
+
+## 用原装斐讯遥控器
+
+原装遥控器（设备 ID `7045:1820`）的电源键发的是 `KEY_POWER`，系统会在所有应用之前把它处理掉，助手收不到。下面这条命令把它布局文件里的电源键改成 TV 键，这样它和手机发的就一样了。改之前会先备份：
+
+```bash
+scripts/box.sh <盒子IP> patch-remote
+```
+
+```bash
+scripts/box.sh <盒子IP> unpatch-remote
+```
+
+第二条用来还原。改动的内容只有一行，见 [box-config/](box-config/)：`key 116 POWER` → `key 116 TV`。
+
+兼容款遥控器的设备 ID 可能不一样。配对后用 `dumpsys input` 查到它的 `vendor` 和 `product`，再写一份 `Vendor_XXXX_Product_YYYY.kl`。如果 `/system/usr/keylayout/` 里没有这个 ID 的文件，可以放在 `/data/system/devices/keylayout/` 下面，不用动系统分区。
+
+## 为什么是「假待机」
+
+这台 N1 的固件做不到真正的待机和遥控开机，详细分析见 [docs/findings.md](docs/findings.md)：
+
+- 斐讯把 Android 的休眠删掉了：`PowerManagerService.goToSleepNoUpdateLocked()` 直接返回 false。所以电源键只能设成「关机」。
+- 真关机以后，没有任何东西能把它叫醒：N1 没有红外接收头，关机时蓝牙也会断电，只能拔电重插。
+- 所以助手做的是：盒子保持运行，只关掉画面、HDMI 和电视。蓝牙一直连着，所以随时能唤醒。
+
+助手截获电源键用的是无障碍服务。具体的操作（写 sysfs、发 CEC）需要 root，而普通 App 被 SELinux 拦着，所以助手通过 `127.0.0.1:5555` 调用盒子本机的 root adbd 来执行。这条连接只在盒子内部走，不经过网络。
+
+## 按键对照
+
+| 按键 | 手机发送（HID Consumer） | 盒子内核键码 | Android 键值 |
+|---|---|---|---|
+| OK | 0x41 Menu Pick | KEY_SELECT | DPAD_CENTER |
+| 上 / 下 / 左 / 右 | 0x42–0x45 | KEY_UP/DOWN/LEFT/RIGHT | DPAD_* |
+| 返回 | 0x224 AC Back | KEY_BACK | BACK |
+| 主页 | 0x223 AC Home | KEY_HOMEPAGE | HOME |
+| 菜单 | 0x40 Menu | KEY_MENU | MENU |
+| 音量 + / − | 0xE9 / 0xEA | KEY_VOLUMEUP/DOWN | VOLUME_UP/DOWN |
+| 语音 | 0xCF Voice Command | KEY_VOICECOMMAND | VOICE_ASSIST（盒子上没有语音应用，按了无反应） |
+| OTT 电源 | 0x89 Media Select TV | KEY_TV | TV → 待机助手 |
+| TV 电源 | — | — | 原装遥控器上是红外学习键，控制电视本身；手机这边没有实现 |
+
+描述符是 13 位位图（加 3 位填充，共 2 字节），里面没有字母键。所以盒子不会把手机当成实体键盘，屏幕软键盘照常能弹出来。
+
+## 注意事项
+
+- **盒子的 adbd 同一时间只接受一个 TCP 连接。** 如果电脑上的 `adb connect` 一直挂着，助手就执行不了待机命令（它会重试 3 次）。用完 adb 记得 `adb disconnect`；`scripts/box.sh` 和 `tools/adb_tcp.py` 都会自动断开。
+- **安全**：N1 的网络 ADB 以 root 运行、不需要授权，同一局域网里的任何设备都能完全控制盒子。这是固件本身的问题，这个项目只是利用了它。不要把盒子放在不可信的网络里。
+- **不要在盒子上打开 TV 设置的关机界面**（`android.intent.action.SHOW_SHUTDOWN`）。它带倒计时，几秒后会真关机，之后只能拔电重启。
+- 待机时盒子 CPU 照常运行，耗电比真关机高。
+- 关 HDMI 信号、通过 CEC 让电视待机，需要盒子接着电视，并且电视开启了 CEC（各品牌叫法不同：Anynet+、SimpLink、Bravia Sync 等）。没接电视时，这部分只验证了命令执行成功。
+- 断电重启后，盒子是正常开机状态，助手会自动启动。
+
+## 编译
+
+需要 JDK，以及 Android SDK 里的 `platforms;android-35` 和 `build-tools;35.0.0`。不需要 Gradle 或 Android Studio。
+
+```bash
+./build.sh
+```
+
+产物放在 `dist/`：
+
+- `n1-remote.apk`：手机 App
+- `n1-standby-helper.apk`：盒子端助手
+- `n1-tools.dex`：盒子端测试工具
+
+SDK 路径用 `ANDROID_HOME` 指定，默认是 Homebrew 的 `android-commandlinetools`。签名密钥默认是 `n1remote.keystore`，第一次编译时自动生成，已经被 gitignore 忽略。之后要一直用同一个密钥，否则 Android 不允许覆盖安装。
+
+## 开发与测试工具
+
+`dist/n1-tools.dex` 推到盒子上以后，用 `app_process` 运行：
+
+- `n1.tools.UhidTest`：通过 `/dev/uhid` 注册一个总线类型为蓝牙的虚拟 HID 遥控器，按指定的键。走的内核和 Android 路径跟真蓝牙遥控器完全一样，可以在不碰真设备的情况下验证按键映射。
+  - `UHID_ID=vvvv:pppp` 可以冒充指定的设备 ID。
+  - 参数里的 `wN` 表示等待 N 毫秒。
+- `n1.tools.BtCtl off|on|state`：开关盒子的蓝牙。
+
+```bash
+adb push dist/n1-tools.dex /data/local/tmp/n1-tools.dex
+```
+
+```bash
+adb shell 'UHID_ID=7045:1820 CLASSPATH=/data/local/tmp/n1-tools.dex app_process /system/bin n1.tools.UhidTest 3000 0 w5000 0'
+```
+
+上面的例子冒充原装遥控器，按两次电源键（第 0 位）。注意：测试待机助手时不要用前台 adb 会话，因为它会占住 adbd，助手就执行不了命令。用 `setsid` 放到后台跑，再断开，具体做法见 [docs/findings.md](docs/findings.md)。
+
+## 第三方内容
+
+- 按键图标来自 [Material Icons](https://github.com/google/material-design-icons)，Apache License 2.0。
+- `box-config/` 里的按键布局文件来自盒子固件，文件头声明为 AOSP 的 Apache License 2.0。
+
+## License
+
+[GPL-3.0](LICENSE)。引用的 Apache License 2.0 素材（见上一节）按各自的协议保留。

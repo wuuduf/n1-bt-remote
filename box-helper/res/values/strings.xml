@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">N1 待机助手</string>
+    <string name="service_desc">接收手机蓝牙遥控器的电源键，让盒子进入或退出待机（关画面、关 HDMI、CEC 关电视）。</string>
+</resources>
