@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">N1 遥控器</string>
-    <string name="hint">首次使用：填上盒子的蓝牙地址（盒子 设置 → 关于 → 状态 里能看到），点「连接」。手机和电视上都会弹出配对确认，两边都选「配对」。以后打开 App 会自动重连，断线后也会自动重连 3 分钟。Android 只允许前台的 App 当遥控器，切出去再回来会自动重连。连着盒子时，手机侧面的音量键调的是盒子的音量。\n\nTV 键通过 HDMI-CEC 单独开关电视。中间的「触控板」按钮可以把方向键换成滑动区：划一下移一格，划完手指停住就连续移动。\n\n电源键需要盒子上装好「N1 待机助手」：待机时盒子回到桌面、关掉画面和 HDMI 信号，并通过 HDMI-CEC 让电视待机，其他按键暂时不响应；再按一次恢复。</string>
+    <string name="hint">首次使用：填上盒子的蓝牙地址（盒子 设置 → 关于 → 状态 里能看到），点「连接」。手机和电视上都会弹出配对确认，两边都选「配对」。以后打开 App 会自动重连，断线后也会自动重连 3 分钟。连上以后，切到别的 App 或锁屏也不会断开，通知栏里可以直接待机或断开。连着盒子时，手机侧面的音量键调的是盒子的音量。\n\nTV 键通过 HDMI-CEC 单独开关电视。中间的「触控板」按钮可以把方向键换成滑动区：划一下移一格，划完手指停住就连续移动。\n\n电源键需要盒子上装好「N1 待机助手」：待机时盒子回到桌面、关掉画面和 HDMI 信号，并通过 HDMI-CEC 让电视待机，其他按键暂时不响应；再按一次恢复。</string>
     <string name="status_init">正在初始化…</string>
     <string name="mac_hint">盒子蓝牙地址 AA:BB:CC:DD:EE:FF</string>
     <string name="paired">已配对</string>
@@ -20,6 +20,7 @@
     <string name="pad_line1">划一下移一格</string>
     <string name="pad_line2">划完停住不松 = 连续移动</string>
     <string name="pad_line3">轻点 = OK</string>
+    <string name="pad_holding">连续移动中，松手停止</string>
     <string name="device_label">%1$s（%2$s）</string>
     <string name="unnamed">（无名称）</string>
     <string name="pick_title">选择盒子</string>
@@ -49,4 +50,7 @@
     <string name="st_ready">就绪：确认盒子地址后点「连接」</string>
     <string name="st_connected">已连接：%1$s</string>
     <string name="st_disconnected">已断开，点「连接」重连</string>
+    <string name="notif_channel">连接状态</string>
+    <string name="notif_power">待机/唤醒</string>
+    <string name="notif_sent_power">已发送「待机/唤醒」</string>
 </resources>

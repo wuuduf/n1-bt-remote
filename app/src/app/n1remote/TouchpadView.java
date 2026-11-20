@@ -26,13 +26,18 @@ public final class TouchpadView extends View {
         void onHold(int key, boolean down); // keep a key pressed until released
     }
 
-    /** Finger still this long after a swipe = hold the key. */
-    private static final long HOLD_AFTER_MS = 400;
+    /**
+     * Finger still this long after a swipe = hold the key. The box adds its own 500 ms before the
+     * first repeat, so continuous movement starts about 0.75 s after the finger stops.
+     */
+    private static final long HOLD_AFTER_MS = 250;
 
     private final float threshold, slop, radius;
     private final Paint bg = paint(0xFF2C2C2E);
     private final Paint flash = paint(0xFF3A3A3C);
+    private final Paint active = paint(0xFF1F4A7A); // holding: the box is repeating the key
     private final Paint hint = paint(0xFF8E8E93);
+    private final Paint activeText = paint(0xFFFFFFFF);
     private final RectF box = new RectF();
 
     private Listener listener;
@@ -58,6 +63,8 @@ public final class TouchpadView extends View {
         radius = 28 * d;
         hint.setTextAlign(Paint.Align.CENTER);
         hint.setTextSize(14 * d);
+        activeText.setTextAlign(Paint.Align.CENTER);
+        activeText.setTextSize(15 * d);
     }
 
     void setListener(Listener l) {
@@ -81,8 +88,15 @@ public final class TouchpadView extends View {
     @Override
     protected void onDraw(Canvas c) {
         box.set(0, 0, getWidth(), getHeight());
-        c.drawRoundRect(box, radius, radius, System.currentTimeMillis() < flashUntil ? flash : bg);
         float cy = getHeight() / 2f;
+        if (holding) {
+            // Stays lit for the whole hold, so it's clear continuous movement has kicked in.
+            c.drawRoundRect(box, radius, radius, active);
+            c.drawText(getContext().getString(R.string.pad_holding), getWidth() / 2f,
+                    cy + activeText.getTextSize() * 0.35f, activeText);
+            return;
+        }
+        c.drawRoundRect(box, radius, radius, System.currentTimeMillis() < flashUntil ? flash : bg);
         c.drawText(getContext().getString(R.string.pad_line1), getWidth() / 2f, cy - hint.getTextSize() * 0.9f, hint);
         c.drawText(getContext().getString(R.string.pad_line2), getWidth() / 2f, cy + hint.getTextSize() * 0.5f, hint);
         c.drawText(getContext().getString(R.string.pad_line3), getWidth() / 2f, cy + hint.getTextSize() * 1.9f, hint);
@@ -103,6 +117,7 @@ public final class TouchpadView extends View {
     private void endGesture() {
         removeCallbacks(startHold);
         if (holding && listener != null) listener.onHold(dir, false);
+        if (holding) invalidate();
         holding = false;
         dir = -1;
     }

@@ -6,28 +6,33 @@ import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
-import android.content.BroadcastReceiver;
-import android.content.Context;
+import android.content.ComponentName;
 import android.content.Intent;
-import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.IBinder;
+import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
+/** The remote screen. The Bluetooth side lives in {@link RemoteService} so it survives the screen. */
 public final class MainActivity extends Activity implements HidRemote.Listener {
 
     /** No default box: the user types its Bluetooth address or picks it from bonded devices. */
@@ -37,10 +42,12 @@ public final class MainActivity extends Activity implements HidRemote.Listener {
     private TextView status;
     private EditText mac;
     private Button connectBtn;
+    private View pickBtn;
+    private LinearLayout linkRow;
     private SharedPreferences prefs;
     private BluetoothAdapter adapter;
-    private HidRemote remote;
-    private boolean receiverRegistered;
+    private RemoteService service;
+    private boolean bound;
     private int hidState = HidRemote.ST_IDLE;
     private String hidText = "";
 
@@ -53,6 +60,8 @@ public final class MainActivity extends Activity implements HidRemote.Listener {
         status = findViewById(R.id.status);
         mac = findViewById(R.id.mac);
         connectBtn = findViewById(R.id.connect);
+        pickBtn = findViewById(R.id.pick);
+        linkRow = findViewById(R.id.link_row);
         mac.setText(prefs.getString("mac", DEFAULT_MAC));
 
         bindKey(R.id.btn_power, HidRemote.KEY_STANDBY);
@@ -86,13 +95,13 @@ public final class MainActivity extends Activity implements HidRemote.Listener {
         setTouchpad(prefs.getBoolean("touchpad", false));
 
         connectBtn.setOnClickListener(v -> onConnectClicked());
-        findViewById(R.id.pick).setOnClickListener(v -> pickBonded());
+        pickBtn.setOnClickListener(v -> pickBonded());
 
-        if (needsPermission()) {
-            requestPermissions(new String[] {Manifest.permission.BLUETOOTH_CONNECT}, REQ_PERMISSION);
-        } else {
-            initBluetooth();
-        }
+        List<String> ask = new ArrayList<>();
+        if (needsPermission()) ask.add(Manifest.permission.BLUETOOTH_CONNECT);
+        if (shouldAskNotifications()) ask.add(Manifest.permission.POST_NOTIFICATIONS);
+        if (!ask.isEmpty()) requestPermissions(ask.toArray(new String[0]), REQ_PERMISSION);
+        if (!needsPermission()) initBluetooth();
     }
 
     private boolean needsPermission() {
@@ -100,9 +109,29 @@ public final class MainActivity extends Activity implements HidRemote.Listener {
                 && checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED;
     }
 
+    /**
+     * The notification carries the standby and disconnect buttons while the app is in the
+     * background. Without the permission the link still stays up, the notification just isn't
+     * shown, so ask only once.
+     */
+    private boolean shouldAskNotifications() {
+        if (Build.VERSION.SDK_INT < 33 || prefs.getBoolean("asked_notifications", false)) return false;
+        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+            return false;
+        }
+        prefs.edit().putBoolean("asked_notifications", true).apply();
+        return true;
+    }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
         if (requestCode != REQ_PERMISSION) return;
+        List<String> asked = Arrays.asList(permissions);
+        // Connected before the user answered: the first notification was dropped, post it again.
+        if (asked.contains(Manifest.permission.POST_NOTIFICATIONS) && service != null) {
+            service.refreshNotification();
+        }
+        if (!asked.contains(Manifest.permission.BLUETOOTH_CONNECT)) return; // Bluetooth already running
         if (needsPermission()) {
             onStatus(HidRemote.ST_ERROR, getString(R.string.err_permission));
         } else {
@@ -126,18 +155,25 @@ public final class MainActivity extends Activity implements HidRemote.Listener {
             startActivityForResult(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE), REQ_ENABLE_BT);
             return;
         }
-        if (!receiverRegistered) {
-            IntentFilter f = new IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
-            if (Build.VERSION.SDK_INT >= 33) registerReceiver(bondReceiver, f, Context.RECEIVER_EXPORTED);
-            else registerReceiver(bondReceiver, f);
-            receiverRegistered = true;
+        if (!bound) bound = bindService(new Intent(this, RemoteService.class), conn, BIND_AUTO_CREATE);
+    }
+
+    private final ServiceConnection conn = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder binder) {
+            service = ((RemoteService.LocalBinder) binder).service();
+            service.setUi(MainActivity.this);
+            service.onUiVisible(deviceFromField(false));
         }
-        remote = new HidRemote(this, adapter, getMainExecutor(), this);
-        BluetoothDevice saved = deviceFromField(false);
-        if (saved != null && saved.getBondState() == BluetoothDevice.BOND_BONDED) {
-            remote.connect(saved); // auto-reconnect once the HID app is registered
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            service = null;
         }
-        remote.start();
+    };
+
+    private HidRemote remote() {
+        return service == null ? null : service.remote();
     }
 
     @Override
@@ -148,19 +184,9 @@ public final class MainActivity extends Activity implements HidRemote.Listener {
         }
     }
 
-    private final BroadcastReceiver bondReceiver = new BroadcastReceiver() {
-        @Override
-        @SuppressWarnings("deprecation")
-        public void onReceive(Context context, Intent intent) {
-            BluetoothDevice d = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-            int state = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.ERROR);
-            if (d != null && remote != null) remote.onBondStateChanged(d, state);
-        }
-    };
-
     private BluetoothDevice deviceFromField(boolean complain) {
         String addr = mac.getText().toString().trim().toUpperCase(Locale.ROOT);
-        if (!BluetoothAdapter.checkBluetoothAddress(addr)) {
+        if (adapter == null || !BluetoothAdapter.checkBluetoothAddress(addr)) {
             if (complain) onStatus(HidRemote.ST_ERROR, getString(R.string.err_mac));
             return null;
         }
@@ -168,6 +194,7 @@ public final class MainActivity extends Activity implements HidRemote.Listener {
     }
 
     private void onConnectClicked() {
+        HidRemote remote = remote();
         if (remote == null) {
             if (needsPermission()) {
                 requestPermissions(new String[] {Manifest.permission.BLUETOOTH_CONNECT}, REQ_PERMISSION);
@@ -234,13 +261,15 @@ public final class MainActivity extends Activity implements HidRemote.Listener {
     @Override
     protected void onResume() {
         super.onResume();
-        if (remote != null) remote.resume(); // re-register / reconnect after being in the background
+        // Re-register / reconnect if Android dropped the link while the app was in the background.
+        if (service != null) service.onUiVisible(deviceFromField(false));
     }
 
     /** While connected, the phone's own volume keys change the box's volume, not the phone's. */
     @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
         int code = e.getKeyCode();
+        HidRemote remote = remote();
         if ((code == KeyEvent.KEYCODE_VOLUME_UP || code == KeyEvent.KEYCODE_VOLUME_DOWN)
                 && remote != null && remote.isConnected()) {
             int key = code == KeyEvent.KEYCODE_VOLUME_UP ? HidRemote.KEY_VOL_UP : HidRemote.KEY_VOL_DOWN;
@@ -261,24 +290,29 @@ public final class MainActivity extends Activity implements HidRemote.Listener {
 
     /** One key press and release, for the swipe pad. */
     private void tapKey(int key) {
-        if (remote == null || !remote.isConnected()) {
-            Toast.makeText(this, R.string.not_connected, Toast.LENGTH_SHORT).show();
-            return;
-        }
+        HidRemote remote = connectedRemote();
+        if (remote == null) return;
         remote.press(key);
         remote.release(key);
     }
 
     private void pressKey(int key) {
-        if (remote == null || !remote.isConnected()) {
-            Toast.makeText(this, R.string.not_connected, Toast.LENGTH_SHORT).show();
-            return;
-        }
-        remote.press(key);
+        HidRemote remote = connectedRemote();
+        if (remote != null) remote.press(key);
     }
 
     private void releaseKey(int key) {
+        HidRemote remote = remote();
         if (remote != null) remote.release(key);
+    }
+
+    private HidRemote connectedRemote() {
+        HidRemote remote = remote();
+        if (remote == null || !remote.isConnected()) {
+            Toast.makeText(this, R.string.not_connected, Toast.LENGTH_SHORT).show();
+            return null;
+        }
+        return remote;
     }
 
     @Override
@@ -290,8 +324,7 @@ public final class MainActivity extends Activity implements HidRemote.Listener {
 
     private void render() {
         int state = hidState;
-        String text = hidText;
-        status.setText(text);
+        status.setText(hidText);
         int color;
         switch (state) {
             case HidRemote.ST_CONNECTED: color = 0xFF30D158; break;
@@ -300,13 +333,25 @@ public final class MainActivity extends Activity implements HidRemote.Listener {
             default: color = 0xFFB0B0B5; break;
         }
         status.setTextColor(color);
-        connectBtn.setText(hidState == HidRemote.ST_CONNECTED ? R.string.disconnect : R.string.connect);
+        boolean connected = state == HidRemote.ST_CONNECTED;
+        connectBtn.setText(connected ? R.string.disconnect : R.string.connect);
+        // Once connected the address is noise: leave just the Disconnect button.
+        if (connected && mac.hasFocus()) {
+            InputMethodManager imm = getSystemService(InputMethodManager.class);
+            if (imm != null) imm.hideSoftInputFromWindow(mac.getWindowToken(), 0);
+            mac.clearFocus();
+        }
+        mac.setVisibility(connected ? View.GONE : View.VISIBLE);
+        pickBtn.setVisibility(connected ? View.GONE : View.VISIBLE);
+        linkRow.setGravity(connected ? Gravity.CENTER : Gravity.CENTER_VERTICAL);
     }
 
     @Override
     protected void onDestroy() {
-        if (remote != null) remote.stop();
-        if (receiverRegistered) unregisterReceiver(bondReceiver);
+        if (service != null) service.setUi(null);
+        if (bound) unbindService(conn);
+        bound = false;
+        service = null;
         super.onDestroy();
     }
 }

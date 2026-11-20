@@ -98,6 +98,8 @@ final class HidRemote {
     private long reconnectUntil;
     private int reconnectTries;
     private final Runnable reconnectTick = this::reconnectTick;
+    /** Set by Disconnect, cleared by Connect: stops a later re-registration from reconnecting. */
+    private boolean userDisconnected;
 
     HidRemote(Context ctx, BluetoothAdapter adapter, Executor executor, Listener listener) {
         this.ctx = ctx;
@@ -174,6 +176,7 @@ final class HidRemote {
     /** Pairs first if needed, then opens the HID connection. */
     void connect(BluetoothDevice device) {
         target = device;
+        userDisconnected = false;
         if (!registered || hid == null) {
             status(ST_BUSY, s(R.string.st_not_ready));
             return;
@@ -192,8 +195,10 @@ final class HidRemote {
     /** User asked to disconnect: forget the target so nothing reconnects behind their back. */
     void disconnect() {
         target = null;
+        userDisconnected = true;
         stopReconnecting();
         if (hid != null && connected != null) hid.disconnect(connected);
+        else status(ST_READY, s(R.string.st_disconnected)); // was only retrying: no callback will come
     }
 
     /** Back in the foreground: register again if Android dropped us, then reconnect. */
@@ -276,13 +281,17 @@ final class HidRemote {
             if (!isRegistered) {
                 // Android drops the HID app as soon as it leaves the foreground
                 // (HidDeviceService unregisters apps below foreground-service importance).
+                // RemoteService prevents that while connected by running in the foreground.
                 connected = null;
                 pressed = 0;
                 stopReconnecting();
                 status(ST_IDLE, s(R.string.st_backgrounded));
                 return;
             }
-            if (target == null && plugged != null) target = plugged;
+            // Android hands back the device we last used. Don't take it after the user disconnected:
+            // the notification's Disconnect drops the foreground service, Android then unregisters
+            // the app, and coming back to the screen registers again.
+            if (target == null && plugged != null && !userDisconnected) target = plugged;
             if (target != null && target.getBondState() == BluetoothDevice.BOND_BONDED) {
                 connect(target);
             } else {

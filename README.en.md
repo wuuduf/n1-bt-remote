@@ -67,7 +67,7 @@ After every boot and every helper update it checks again and repairs the setup i
 
 ### 3. Pair the phone
 
-1. Install `n1-remote.apk` on the phone, open it and allow the Nearby devices permission.
+1. Install `n1-remote.apk` on the phone, open it and allow the Nearby devices permission. Android 13 and later also ask for notifications: allow them, the notification buttons need it.
 2. Enter the box's Bluetooth address. It is in the box's Settings → About → Status, or run `python3 tools/adb_tcp.py <box-ip> 'settings get secure bluetooth_address'`.
 3. Tap Connect. Both the phone and the box ask to confirm the pairing; confirm on both.
    - The box shows two dialogs at once (phone-style Settings and TV Settings). The one on top is the one that counts.
@@ -78,14 +78,15 @@ After every boot and every helper update it checks again and repairs the setup i
      ```
 4. The status turns green ("Connected") and you're done. The app reconnects by itself next time.
    - When the link drops (box rebooted, phone out of range), the app retries every 5 seconds for 3 minutes, and starts again when you come back to the app. Tapping Disconnect is on purpose and does not reconnect.
-   - **The app has to be in the foreground.** Android only lets the foreground app act as a Bluetooth HID device: switch to another app or lock the screen and the remote disconnects. Back in the app it reconnects in about 2 seconds.
+   - **Stays connected in the background.** Once connected, the app shows a "Connected" notification (a foreground service). Switch to another app or lock the screen and the link stays up, ready the moment you come back. The notification has two buttons: Standby / wake and Disconnect.
+   - After Disconnect the notification goes away. From then on the app is back to the old rule (Android only lets the foreground app act as a Bluetooth HID device): leave it and the remote disconnects, come back and it reconnects in about 2 seconds. Without the notification permission the link still stays up in the background; you just don't see the notification.
    - While connected, **the phone's own volume keys change the box volume**; hold to keep changing. When not connected they change the phone volume as usual.
 
 ### 4. Power and the other keys
 
 - **OTT key (red)**: power. One press puts the box in standby: back to the home screen, screen blanked, HDMI signal off, CPU capped at 500 MHz, TV asked to sleep over CEC. Press again to wake.
 - **TV key**: turns only the TV on or off over HDMI-CEC; the box is not affected. The TV must support CEC and have it on.
-- **Touchpad**: the Touchpad button between the two power keys swaps the D-pad for a swipe area. **One swipe moves one item**, however long or fast. **Swipe and keep your finger resting** to keep moving, like holding a D-pad key; lift to stop. A tap is OK. Tap "D-pad" to switch back; the app remembers your choice.
+- **Touchpad**: the Touchpad button between the two power keys swaps the D-pad for a swipe area. **One swipe moves one item**, however long or fast. **Swipe and keep your finger resting** to keep moving, like holding a D-pad key; lift to stop. Movement starts about 0.75 s after your finger stops, and the pad turns blue to show it. A tap is OK. Tap "D-pad" to switch back; the app remembers your choice.
 - **Holding a key**: hold a D-pad or volume key and the box repeats it.
 
 ## The original Phicomm remote
