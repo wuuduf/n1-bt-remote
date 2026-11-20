@@ -15,6 +15,7 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.HapticFeedbackConstants;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
@@ -66,8 +67,23 @@ public final class MainActivity extends Activity implements HidRemote.Listener {
             if (down) pressKey(key);
             else releaseKey(key);
         });
-        findViewById(R.id.btn_tv).setOnClickListener(v -> Toast.makeText(this,
-                "TV 键是红外学习键，用来开关电视本身，手机蓝牙模拟不了", Toast.LENGTH_LONG).show());
+        bindKey(R.id.btn_tv, HidRemote.KEY_TV_POWER);
+        TouchpadView pad = findViewById(R.id.touchpad);
+        pad.setListener(new TouchpadView.Listener() {
+            @Override
+            public void onTap(int key) {
+                tapKey(key);
+            }
+
+            @Override
+            public void onHold(int key, boolean down) {
+                if (down) pressKey(key);
+                else releaseKey(key);
+            }
+        });
+        TextView modeBtn = findViewById(R.id.mode);
+        modeBtn.setOnClickListener(v -> setTouchpad(!prefs.getBoolean("touchpad", false)));
+        setTouchpad(prefs.getBoolean("touchpad", false));
 
         connectBtn.setOnClickListener(v -> onConnectClicked());
         findViewById(R.id.pick).setOnClickListener(v -> pickBonded());
@@ -213,6 +229,44 @@ public final class MainActivity extends Activity implements HidRemote.Listener {
                     return true;
             }
         });
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (remote != null) remote.resume(); // re-register / reconnect after being in the background
+    }
+
+    /** While connected, the phone's own volume keys change the box's volume, not the phone's. */
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent e) {
+        int code = e.getKeyCode();
+        if ((code == KeyEvent.KEYCODE_VOLUME_UP || code == KeyEvent.KEYCODE_VOLUME_DOWN)
+                && remote != null && remote.isConnected()) {
+            int key = code == KeyEvent.KEYCODE_VOLUME_UP ? HidRemote.KEY_VOL_UP : HidRemote.KEY_VOL_DOWN;
+            if (e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) remote.press(key);
+            else if (e.getAction() == KeyEvent.ACTION_UP) remote.release(key);
+            return true; // held keys repeat on the box side
+        }
+        return super.dispatchKeyEvent(e);
+    }
+
+    /** Swaps the D-pad for the swipe pad (same place on the remote) and remembers the choice. */
+    private void setTouchpad(boolean on) {
+        prefs.edit().putBoolean("touchpad", on).apply();
+        findViewById(R.id.dpad).setVisibility(on ? View.GONE : View.VISIBLE);
+        findViewById(R.id.touchpad).setVisibility(on ? View.VISIBLE : View.GONE);
+        ((TextView) findViewById(R.id.mode)).setText(on ? "方向键" : "触控板");
+    }
+
+    /** One key press and release, for the swipe pad. */
+    private void tapKey(int key) {
+        if (remote == null || !remote.isConnected()) {
+            Toast.makeText(this, "还没连上盒子", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        remote.press(key);
+        remote.release(key);
     }
 
     private void pressKey(int key) {

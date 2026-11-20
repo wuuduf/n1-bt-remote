@@ -14,17 +14,18 @@ import java.nio.ByteOrder;
  *
  * Usage: [UHID_ID=vvvv:pppp] UhidTest <holdMs> [bit ...]
  *   holdMs   how long the device stays registered before and after the presses
- *   bit      bit index in the 13-key bitmap to press and release, e.g. 8 9; wN waits N ms
+ *   bit      bit index in the 14-key bitmap to press and release, e.g. 8 9;
+ *            wN waits N ms; hB:N holds bit B down for N ms
  */
 public final class UhidTest {
     // Must stay identical to HidRemote.DESCRIPTOR in the app.
     static final byte[] DESC = {
         0x05, 0x0C, 0x09, 0x01, (byte) 0xA1, 0x01, (byte) 0x85, 0x01,
-        0x15, 0x00, 0x25, 0x01, 0x75, 0x01, (byte) 0x95, 0x0D,
+        0x15, 0x00, 0x25, 0x01, 0x75, 0x01, (byte) 0x95, 0x0E,
         0x09, 0x30, 0x09, 0x40, 0x09, 0x41, 0x09, 0x42, 0x09, 0x43, 0x09, 0x44,
         0x09, 0x45, 0x09, (byte) 0xCF, 0x09, (byte) 0xE9, 0x09, (byte) 0xEA,
-        0x0A, 0x23, 0x02, 0x0A, 0x24, 0x02, 0x09, (byte) 0x89,
-        (byte) 0x81, 0x02, 0x75, 0x03, (byte) 0x95, 0x01, (byte) 0x81, 0x03, (byte) 0xC0,
+        0x0A, 0x23, 0x02, 0x0A, 0x24, 0x02, 0x09, (byte) 0x89, 0x09, (byte) 0x8D,
+        (byte) 0x81, 0x02, 0x75, 0x02, (byte) 0x95, 0x01, (byte) 0x81, 0x03, (byte) 0xC0,
     };
 
     static final int UHID_CREATE = 0, UHID_DESTROY = 1, UHID_INPUT = 8;
@@ -57,9 +58,15 @@ public final class UhidTest {
                 Thread.sleep(Integer.parseInt(args[i].substring(1)));
                 continue;
             }
-            int mask = 1 << Integer.parseInt(args[i]);
+            int holdMs = 80;
+            String bit = args[i];
+            if (bit.startsWith("h")) { // hold, e.g. h4:1500 keeps bit 4 down for 1.5 s
+                holdMs = Integer.parseInt(bit.substring(bit.indexOf(':') + 1));
+                bit = bit.substring(1, bit.indexOf(':'));
+            }
+            int mask = 1 << Integer.parseInt(bit);
             input(f, new byte[] {1, (byte) mask, (byte) (mask >> 8)});
-            Thread.sleep(80);
+            Thread.sleep(holdMs);
             input(f, new byte[] {1, 0, 0});
             System.out.println("pressed bit " + args[i]);
             Thread.sleep(600);

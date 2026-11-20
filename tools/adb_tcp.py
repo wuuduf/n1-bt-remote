@@ -53,9 +53,14 @@ def connect(host, port=5555, timeout=8):
     return s, data.decode(errors='replace')
 
 
-def shell(host, command, port=5555, timeout=8):
-    """Runs a shell command and returns its output (stdout and stderr merged)."""
+def shell(host, command, port=5555, timeout=8, run_timeout=None):
+    """Runs a shell command and returns its output (stdout and stderr merged).
+
+    `timeout` covers connecting and the handshake only. A command may run for a long
+    time without printing anything, so by default there is no limit on that part.
+    """
     s, _ = connect(host, port, timeout)
+    s.settimeout(run_timeout)
     try:
         s.sendall(_msg(OPEN, 1, 0, ('shell:' + command).encode() + b'\x00'))
         out = b''

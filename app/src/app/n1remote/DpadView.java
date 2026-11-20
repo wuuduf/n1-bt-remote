@@ -116,6 +116,7 @@ public final class DpadView extends View {
             case MotionEvent.ACTION_DOWN: {
                 int k = zone(e.getX(), e.getY());
                 if (k == NONE) return false;
+                getParent().requestDisallowInterceptTouchEvent(true); // keep a held key held
                 down = k;
                 performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
                 if (listener != null) listener.onKey(k, true);

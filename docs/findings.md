@@ -45,6 +45,7 @@
 | HDMI 信号 | `echo 0 > /sys/class/amhdmitx/amhdmitx0/phy`（恢复时写 1） |
 | CEC 让电视待机 | `printf '\100\066' > /dev/cec`，即 `0x40 0x36` |
 | CEC 唤醒电视 | `0x40 0x04`（Image View On），再发 `0x4F 0x82 <物理地址>`（Active Source） |
+| CPU 上限 | 待机时把 `cpu0/cpufreq/scaling_max_freq` 写成 500000，唤醒时恢复原来的值（原值存在 `/dev/.n1remote_maxfreq`）。这台盒子的调频策略只有 `hotplug`、`interactive`、`performance`，没有 `powersave`；4 个核共用一个调频策略，频率档位是 100–1512 MHz 共 7 档 |
 | 状态标记 | `/dev/.n1remote_standby`，放在 tmpfs 上，重启后自然消失 |
 
 ## 5. 按键怎么送到助手手里
@@ -52,6 +53,7 @@
 - 无障碍服务开启 `flagRequestFilterKeyEvents` 后，能在按键派发给应用之前拿到它。**但电源键不行**：它在 `interceptKeyBeforeQueueing` 里被清掉了 `ACTION_PASS_TO_USER` 标志，而 `AccessibilityInputFilter` 会直接放过不带这个标志的事件，所以服务根本看不到。
 - 于是改用 HID Consumer `0x89`（Media Select TV）。它在内核里变成 `KEY_TV`（377），`Generic.kl` 再把它映射成 `KEYCODE_TV`（170）。这台盒子上没有其他程序处理这个键，实测按下去没有任何副作用。
 - 原装斐讯遥控器的布局文件 `Vendor_7045_Product_1820.kl` 本来写的是 `key 116 POWER`，改成 `key 116 TV` 之后，它的电源键就和手机发的是同一个键了。这台机器的 `/system` 本来就是以 rw 挂载的，dm-verity 也没开。
+- TV 键用的是 HID Consumer `0x8D`（Program Guide）。它在内核里变成 `KEY_PROGRAM`（362），`Generic.kl` 再映射成 `GUIDE`，同样由助手截获。这个键用来通过 CEC 单独开关电视。
 - 布局文件的查找顺序是：先找 `/system/usr/keylayout/`，再找 `/data/system/devices/keylayout/`（`libinput.so` 里的路径字符串就是这个顺序）。
 
 ## 6. 蓝牙 HID（手机端）
@@ -65,7 +67,20 @@
   2. 同时替换 `bt_config.conf` 和 `bt_config.bak` 里那一行。用 `cat 新文件 > 原文件` 的方式写，保留属主、权限和 SELinux 标签。
   3. 隔几秒确认没被覆盖，再用 `BtCtl on` 开蓝牙。手机重连后，`getevent -p` 里就能看到新增的 `0179`（KEY_TV）了。
 
-## 7. 其他
+## 7. 蓝牙链路的时序（触控板为什么这样设计）
+
+- 手机和盒子之间的蓝牙链路空闲时会进入嗅探（sniff）模式。实测按键报告大约**每 225 毫秒才成批送达一次**：间隔集中在 225 / 450 / 675 毫秒，同一窗口里的多个报告会在 1–4 毫秒内一起到达。
+- 所以手机端按时间生成的连发（比如每 150 毫秒发一个方向键）会被打乱：有的窗口里到两个，焦点一下跳两格；有的窗口里一个没有，又停住了。第一版触控板「每划过 40dp 发一个键」也有同样的问题，快划时几个键挤在一起。
+- 现在的做法：划一下只发一对「按下 + 松开」，最多就是被推迟一点，不会变成多格。连续移动则是「划完停住 = 一直按住这个键」，连发由盒子本地按 Android 的标准节奏生成（先停 500 毫秒，之后每 50 毫秒一次），节奏均匀，不受蓝牙影响。实测按住时 `repeatCount` 稳定地每 50 毫秒加一。
+- 手机 App 改不了嗅探参数：`BluetoothHidDevice` 没有提供电源管理相关的接口。
+
+## 8. Android 对 HID 设备应用的限制
+
+- Android 13 的 `HidDeviceService` 会监听已注册应用的前台状态。应用一旦降到前台服务级别以下（切到后台、锁屏），服务就会主动 `unregisterApp`，连接随之断开。日志里能看到蓝牙服务自己调用了 `unregisterAppNative`，App 端并没有调用。
+- App 在 `onResume` 时检查：如果注册已被注销，就重新注册，然后自动重连，实测约 2 秒恢复。如果要在后台也保持连接，需要一个前台服务（常驻通知）。
+
+## 9. 其他
 
 - 语音键：键值是 `VOICE_ASSIST`。系统会去启动 `android.speech.action.WEB_SEARCH`，但这台盒子上没有能处理它的应用。原装遥控器的布局文件里语音键也映射成这个值，结果应该一样。
+- 测试用的这台小米手机，实体音量 + 键的中断计数开机 5 天一直是 0（`/proc/interrupts` 里的 `volume_up`），键本身是坏的。所以「手机音量键转发给盒子」这个功能只写了代码，还没用实体键测通。
 - 盒子上有一个 `uiautomator`，可以配合 `input tap`，在没有遥控器的情况下操作界面（`tools/confirm_pairing.py` 就是这么做的）。小米手机要额外打开「USB 调试（安全设置）」，才允许 `input tap` 这类模拟点击。

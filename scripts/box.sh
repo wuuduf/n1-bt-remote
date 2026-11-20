@@ -7,6 +7,8 @@
 #                                              (so the helper handles it); backs up first
 #   scripts/box.sh <box-ip> unpatch-remote     restore the original Phicomm key layout
 #   scripts/box.sh <box-ip> status             helper, power key setting, standby state
+#   scripts/box.sh <box-ip> update-descriptor <phone-mac>  after an app update that adds keys:
+#                                              swap the descriptor the box stored, no re-pairing
 #   scripts/box.sh <box-ip> uninstall-helper   remove the helper, power key back to factory (shutdown)
 #
 # Needs adb (Android platform-tools). Disconnects at the end on purpose: the N1's adbd
@@ -14,8 +16,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-usage() { sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
-[ $# -eq 2 ] || usage
+usage() { sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+[ $# -ge 2 ] || usage
 HOST=$1 CMD=$2 T="$1:5555"
 
 KL=/system/usr/keylayout/Vendor_7045_Product_1820.kl
@@ -64,6 +66,33 @@ status)
          echo \"phicomm remote:     \$(grep '^key 116' $KL)\"
          [ -e /dev/.n1remote_standby ] && echo 'state:              standby' || echo 'state:              awake'
          logcat -d | grep N1Standby | tail -3"
+    ;;
+update-descriptor)
+    # Bluedroid keeps the HID descriptor it got at pairing time. After an app update that
+    # adds keys, swap the stored copy instead of re-pairing (see docs/findings.md §6).
+    [ -n "${3:-}" ] || { echo "usage: $0 <box-ip> update-descriptor <phone-bt-mac>" >&2; exit 2; }
+    MAC=$(echo "$3" | tr 'A-Z' 'a-z')
+    HEX=$(python3 - <<'PY'
+import re
+s = open('app/src/app/n1remote/HidRemote.java').read()
+i = s.index('DESCRIPTOR = {'); j = s.index('};', i)
+body = re.sub(r'//[^\n]*', '', s[i + 14:j]).replace('REPORT_ID', '1').replace('(byte)', '')
+print(''.join('%02x' % (int(t, 16) if t.lower().startswith('0x') else int(t))
+              for t in re.findall(r'0x[0-9A-Fa-f]+|\b\d+\b', body)))
+PY
+)
+    [ -f dist/n1-tools.dex ] || ./build.sh tools
+    adb -s "$T" push -q dist/n1-tools.dex /data/local/tmp/n1-tools.dex
+    sh_ "D=/data/misc/bluedroid; B=$BAK; BT='CLASSPATH=/data/local/tmp/n1-tools.dex app_process /system/bin n1.tools.BtCtl'
+         grep -q '^\[$MAC\]' \$D/bt_config.conf || { echo 'phone $MAC is not paired with this box'; exit 1; }
+         mkdir -p \$B; cp \$D/bt_config.conf \$B/bt_config.conf.before-update; cp \$D/bt_config.bak \$B/bt_config.bak.before-update
+         eval \$BT off; sleep 4
+         for f in bt_config.conf bt_config.bak; do
+           awk -v sec='[$MAC]' -v hex='$HEX' '/^\[/{s=\$0} s==sec && /^HidDescriptor = /{print \"HidDescriptor = \" hex; next} {print}' \$D/\$f > \$B/\$f.new && cat \$B/\$f.new > \$D/\$f; rm -f \$B/\$f.new
+         done
+         sleep 3; n=\$(grep -c 'HidDescriptor = $HEX' \$D/bt_config.conf)
+         eval \$BT on
+         [ \"\$n\" = 1 ] && echo 'descriptor updated; reopen the phone app to reconnect' || echo 'update did not stick, backups in '\$B"
     ;;
 uninstall-helper)
     sh_ "cur=\$(settings get secure enabled_accessibility_services)

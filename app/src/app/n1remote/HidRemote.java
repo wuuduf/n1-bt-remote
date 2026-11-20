@@ -8,13 +8,15 @@ import android.bluetooth.BluetoothProfile;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
+import android.util.Log;
 
 import java.util.concurrent.Executor;
 
 /**
  * Makes the phone a Bluetooth HID remote control (BluetoothHidDevice, Android 9+).
  *
- * The report is a 13-bit Consumer Control bitmap, one bit per key. Verified on the
+ * The report is a 14-bit Consumer Control bitmap, one bit per key. Verified on the
  * Phicomm N1 (Android 7.1.2, kernel 3.14) through /dev/uhid: each usage below maps
  * to the Linux key in the comment, and Generic.kl turns that into the Android key
  * the original Phicomm remote produces.
@@ -42,6 +44,8 @@ final class HidRemote {
     static final int KEY_BACK = 11;    // 0x0224 AC Back      -> KEY_BACK       -> BACK
     /** Phone's power button. The box helper (app.n1standby) turns it into a soft standby. */
     static final int KEY_STANDBY = 12; // 0x0089 Media Sel. TV -> KEY_TV        -> TV
+    /** Phone's TV button. The box helper turns the TV on or off over HDMI-CEC. */
+    static final int KEY_TV_POWER = 13; // 0x008D Program Guide -> KEY_PROGRAM   -> GUIDE
 
     static final int REPORT_ID = 1;
 
@@ -53,7 +57,7 @@ final class HidRemote {
         0x15, 0x00,                    //   Logical Minimum (0)
         0x25, 0x01,                    //   Logical Maximum (1)
         0x75, 0x01,                    //   Report Size (1)
-        (byte) 0x95, 0x0D,             //   Report Count (13)
+        (byte) 0x95, 0x0E,             //   Report Count (14)
         0x09, 0x30,                    //   Usage (Power)
         0x09, 0x40,                    //   Usage (Menu)
         0x09, 0x41,                    //   Usage (Menu Pick)
@@ -67,8 +71,9 @@ final class HidRemote {
         0x0A, 0x23, 0x02,              //   Usage (AC Home)
         0x0A, 0x24, 0x02,              //   Usage (AC Back)
         0x09, (byte) 0x89,             //   Usage (Media Select TV)
+        0x09, (byte) 0x8D,             //   Usage (Media Select Program Guide)
         (byte) 0x81, 0x02,             //   Input (Data, Variable, Absolute)
-        0x75, 0x03,                    //   Report Size (3)
+        0x75, 0x02,                    //   Report Size (2)
         (byte) 0x95, 0x01,             //   Report Count (1)
         (byte) 0x81, 0x03,             //   Input (Constant) padding to 2 bytes
         (byte) 0xC0,                   // End Collection
@@ -86,6 +91,13 @@ final class HidRemote {
     private int pressed;
     private int registerAttempts;
     private final Handler retry = new Handler(Looper.getMainLooper());
+
+    // Auto-reconnect after the link drops (box rebooted, phone out of range, ...).
+    private static final long RECONNECT_WINDOW_MS = 3 * 60_000, RECONNECT_EVERY_MS = 5_000;
+    private boolean reconnecting;
+    private long reconnectUntil;
+    private int reconnectTries;
+    private final Runnable reconnectTick = this::reconnectTick;
 
     HidRemote(Context ctx, BluetoothAdapter adapter, Executor executor, Listener listener) {
         this.ctx = ctx;
@@ -168,9 +180,59 @@ final class HidRemote {
         if (!hid.connect(device)) status(ST_ERROR, "发起连接失败");
     }
 
+    /** User asked to disconnect: forget the target so nothing reconnects behind their back. */
     void disconnect() {
         target = null;
+        stopReconnecting();
         if (hid != null && connected != null) hid.disconnect(connected);
+    }
+
+    /** Back in the foreground: register again if Android dropped us, then reconnect. */
+    void resume() {
+        if (hid == null) return;
+        if (!registered) {
+            registerAttempts = 0;
+            status(ST_BUSY, "正在重新注册蓝牙 HID…");
+            register();
+        } else {
+            ensureConnected();
+        }
+    }
+
+    /**
+     * Keeps trying to get the link back, every 5 s for 3 minutes. Called when the link drops
+     * and when the app comes back to the foreground. No-op if already connected or if the user
+     * disconnected on purpose.
+     */
+    void ensureConnected() {
+        if (reconnecting || target == null || connected != null || hid == null || !registered) return;
+        if (target.getBondState() != BluetoothDevice.BOND_BONDED) return;
+        reconnecting = true;
+        reconnectUntil = SystemClock.uptimeMillis() + RECONNECT_WINDOW_MS;
+        reconnectTries = 0;
+        retry.removeCallbacks(reconnectTick);
+        retry.postDelayed(reconnectTick, 1000);
+    }
+
+    private void reconnectTick() {
+        if (target == null || connected != null || hid == null || !registered) {
+            reconnecting = false;
+            return;
+        }
+        if (SystemClock.uptimeMillis() > reconnectUntil) {
+            reconnecting = false;
+            status(ST_READY, "连不上盒子（可能断电了或不在附近），点「连接」再试");
+            return;
+        }
+        reconnectTries++;
+        status(ST_BUSY, "连接断开，正在自动重连…（第 " + reconnectTries + " 次）");
+        hid.connect(target);
+        retry.postDelayed(reconnectTick, RECONNECT_EVERY_MS);
+    }
+
+    private void stopReconnecting() {
+        reconnecting = false;
+        retry.removeCallbacks(reconnectTick);
     }
 
     void onBondStateChanged(BluetoothDevice device, int state) {
@@ -194,7 +256,8 @@ final class HidRemote {
 
     private void send() {
         if (hid == null || connected == null) return;
-        hid.sendReport(connected, REPORT_ID, new byte[] {(byte) pressed, (byte) (pressed >> 8)});
+        boolean ok = hid.sendReport(connected, REPORT_ID, new byte[] {(byte) pressed, (byte) (pressed >> 8)});
+        if (!ok) Log.w("N1Remote", "sendReport failed, mask=" + Integer.toHexString(pressed));
     }
 
     private final BluetoothHidDevice.Callback callback = new BluetoothHidDevice.Callback() {
@@ -202,8 +265,12 @@ final class HidRemote {
         public void onAppStatusChanged(BluetoothDevice plugged, boolean isRegistered) {
             registered = isRegistered;
             if (!isRegistered) {
+                // Android drops the HID app as soon as it leaves the foreground
+                // (HidDeviceService unregisters apps below foreground-service importance).
                 connected = null;
-                status(ST_IDLE, "HID 服务已注销");
+                pressed = 0;
+                stopReconnecting();
+                status(ST_IDLE, "App 在后台时系统会断开蓝牙遥控，回到这里会自动重连");
                 return;
             }
             if (target == null && plugged != null) target = plugged;
@@ -220,16 +287,19 @@ final class HidRemote {
                 case BluetoothProfile.STATE_CONNECTED:
                     connected = device;
                     pressed = 0;
+                    stopReconnecting();
                     status(ST_CONNECTED, "已连接：" + label(device));
                     break;
                 case BluetoothProfile.STATE_CONNECTING:
-                    status(ST_BUSY, "正在连接 " + label(device) + "…");
+                    if (!reconnecting) status(ST_BUSY, "正在连接 " + label(device) + "…");
                     break;
                 case BluetoothProfile.STATE_DISCONNECTED:
                     if (connected == null || connected.equals(device)) {
                         connected = null;
                         pressed = 0;
-                        status(ST_READY, "已断开，点「连接」重连");
+                        if (reconnecting) break;           // a retry failed; the loop goes on
+                        if (target != null) ensureConnected();
+                        if (!reconnecting) status(ST_READY, "已断开，点「连接」重连");
                     }
                     break;
                 default:
