@@ -1,0 +1,211 @@
+# N1 Bluetooth Remote
+
+Turn an Android phone into a Bluetooth remote for the **Phicomm N1** TV box, power on/off included. The box firmware has Android sleep removed, so a small helper on the box adds standby and wake. The original Phicomm Bluetooth remote can use the same power handling.
+
+[中文](README.md) | **English**
+
+![build](https://github.com/wuuduf/n1-bt-remote/actions/workflows/build.yml/badge.svg)
+
+| Part | Runs on | What it does |
+|---|---|---|
+| `n1-remote.apk` | Android phone (Android 9+) | The remote. Every key goes over Bluetooth HID, no Wi-Fi needed |
+| `n1-standby-helper.apk` | N1 box | Accessibility service: the power key toggles a soft standby, other keys are ignored while in standby |
+| `scripts/box.sh` | Computer | Installs the helper and remaps the original remote's power key, over the box's network ADB |
+| `tools/confirm_pairing.py` | Computer | Taps "Pair" on the box for you when you have no remote |
+| `tools/selftest.py` | Computer | One-command check of the box side: key mapping, held keys, TV key, standby, wake |
+
+The app follows the phone's system language: Chinese on Chinese phones, English everywhere else.
+
+## Tested with
+
+- Box: Phicomm N1, firmware `N1_A0_V2.32_A00_0904_NS` (Android 7.1.2, kernel 3.14)
+- Phone: Xiaomi 13 Ultra (Android 13)
+- Requirement: the box's network ADB (port 5555) is on. On the test box it was on out of the factory, running as root with no authorization. Check with `python3 tools/adb_tcp.py <box-ip> --probe`: an answer like `device::ro.product.name=p230;...` means it is on.
+
+Other firmware (for example third-party builds based on v2.19) handles the power key differently and was not tested.
+
+## Quick start
+
+### 1. Get the APKs
+
+Download `n1-remote.apk` and `n1-standby-helper.apk` from Releases, or build them (see below).
+
+### 2. Install the standby helper on the box
+
+Your computer needs `adb` (Android platform-tools).
+
+```bash
+scripts/box.sh <box-ip> install-helper
+```
+
+This does three things:
+
+- installs the helper;
+- enables its accessibility service;
+- changes the box's `power_key_definition` from 1 (shut down) to 0 (do nothing), so a native power key from any remote can no longer shut the box down for good.
+
+### 3. Pair the phone
+
+1. Install `n1-remote.apk` on the phone, open it and allow the Nearby devices permission.
+2. Enter the box's Bluetooth address. It is in the box's Settings → About → Status, or run `python3 tools/adb_tcp.py <box-ip> 'settings get secure bluetooth_address'`.
+3. Tap Connect. Both the phone and the box ask to confirm the pairing; confirm on both.
+   - The box shows two dialogs at once (phone-style Settings and TV Settings). The one on top is the one that counts.
+   - **No remote?** Run this on your computer first, then tap Connect on the phone. It only confirms a dialog that names your phone:
+
+     ```bash
+     python3 tools/confirm_pairing.py <box-ip> "<phone's Bluetooth name>"
+     ```
+4. The status turns green ("Connected") and you're done. The app reconnects by itself next time.
+   - When the link drops (box rebooted, phone out of range), the app retries every 5 seconds for 3 minutes, and starts again when you come back to the app. Tapping Disconnect is on purpose and does not reconnect.
+   - **The app has to be in the foreground.** Android only lets the foreground app act as a Bluetooth HID device: switch to another app or lock the screen and the remote disconnects. Back in the app it reconnects in about 2 seconds.
+   - While connected, **the phone's own volume keys change the box volume**; hold to keep changing. When not connected they change the phone volume as usual.
+
+### 4. Power and the other keys
+
+- **OTT key (red)**: power. One press puts the box in standby: back to the home screen, screen blanked, HDMI signal off, CPU capped at 500 MHz, TV asked to sleep over CEC. Press again to wake.
+- **TV key**: turns only the TV on or off over HDMI-CEC; the box is not affected. The TV must support CEC and have it on.
+- **Touchpad**: the Touchpad button between the two power keys swaps the D-pad for a swipe area. **One swipe moves one item**, however long or fast. **Swipe and keep your finger resting** to keep moving, like holding a D-pad key; lift to stop. A tap is OK. Tap "D-pad" to switch back; the app remembers your choice.
+- **Holding a key**: hold a D-pad or volume key and the box repeats it.
+
+## The original Phicomm remote
+
+The original remote (device ID `7045:1820`) sends `KEY_POWER` for its power key. Android handles that key before any app sees it, so the helper never gets it. This command maps it to the TV key in the remote's key layout, which makes it send the same key as the phone. It backs the file up first:
+
+```bash
+scripts/box.sh <box-ip> patch-remote
+```
+
+```bash
+scripts/box.sh <box-ip> unpatch-remote
+```
+
+The second command restores it. The change is a single line, see [box-config/](box-config/): `key 116 POWER` → `key 116 TV`.
+
+Compatible remotes may use another device ID. After pairing, read its `vendor` and `product` from `dumpsys input` and write a `Vendor_XXXX_Product_YYYY.kl`. If `/system/usr/keylayout/` has no file for that ID, put it in `/data/system/devices/keylayout/` and leave the system partition alone.
+
+## Why a "soft" standby
+
+This N1 firmware cannot really sleep, and cannot be powered on remotely. Details in [docs/findings.md](docs/findings.md) (Chinese):
+
+- Phicomm removed Android sleep: `PowerManagerService.goToSleepNoUpdateLocked()` just returns false. That is why the power key can only be set to "shut down".
+- After a real shutdown nothing can wake the box: the N1 has no IR receiver and Bluetooth loses power too. Only unplugging it helps.
+- So the helper keeps the box running and only turns off the picture, the HDMI signal and the TV. Bluetooth stays connected, so it can always wake.
+
+The helper catches the key as an accessibility service. The actual work (writing sysfs, sending CEC) needs root, and SELinux blocks a normal app from it, so the helper runs it through the box's own root adbd on `127.0.0.1:5555`. That connection never leaves the box.
+
+## Key map
+
+| Key | Phone sends (HID Consumer) | Box kernel key | Android key |
+|---|---|---|---|
+| OK | 0x41 Menu Pick | KEY_SELECT | DPAD_CENTER |
+| Up / Down / Left / Right | 0x42–0x45 | KEY_UP/DOWN/LEFT/RIGHT | DPAD_* |
+| Back | 0x224 AC Back | KEY_BACK | BACK |
+| Home | 0x223 AC Home | KEY_HOMEPAGE | HOME |
+| Menu | 0x40 Menu | KEY_MENU | MENU |
+| Volume + / − | 0xE9 / 0xEA | KEY_VOLUMEUP/DOWN | VOLUME_UP/DOWN |
+| Voice | 0xCF Voice Command | KEY_VOICECOMMAND | VOICE_ASSIST (no voice app on the box, does nothing) |
+| OTT power | 0x89 Media Select TV | KEY_TV | TV → helper toggles standby |
+| TV power | 0x8D Media Select Program Guide | KEY_PROGRAM | GUIDE → helper turns the TV on/off over CEC |
+
+The descriptor is a 14-bit bitmap (plus 2 padding bits, 2 bytes) with no letter keys, so the box does not treat the phone as a physical keyboard and the on-screen keyboard still shows up.
+
+## Keys missing after an app update
+
+The box stores the key descriptor it got at pairing time and never reads it again. If a new app version adds keys (2.2.0 added the TV key, for example), the box won't know them. Either:
+
+- unpair on both the phone and the box, then pair again; or
+- swap the stored descriptor without re-pairing:
+
+  ```bash
+  scripts/box.sh <box-ip> update-descriptor <phone-bluetooth-address>
+  ```
+
+  It backs up the box's Bluetooth config, turns Bluetooth off, swaps the descriptor and turns Bluetooth back on. The phone's Bluetooth address is in its Settings → About.
+
+## Caveats
+
+- **The box's adbd serves only one TCP client at a time.** If `adb connect` from a computer stays connected, the helper can't run its standby commands (it retries 3 times). Run `adb disconnect` when done; `scripts/box.sh` and `tools/adb_tcp.py` disconnect on their own.
+- **Security**: the N1's network ADB runs as root with no authorization, so anything on the same network can take full control of the box. That is how the firmware ships; this project only relies on it. Don't keep the box on a network you don't trust.
+- **Never open TV Settings' shutdown screen on the box** (`android.intent.action.SHOW_SHUTDOWN`). It counts down and really shuts the box down after a few seconds, and only unplugging brings it back.
+- In standby the box keeps running, only with the CPU capped at 500 MHz, so it still uses more power than a real shutdown. I have not measured how much.
+- The box can't read CEC replies, so for the TV key the helper only remembers whether it last turned the TV on or off. If you used the TV's own remote, that guess may be wrong; press the TV key once more.
+- Phone volume keys driving the box: the code is there, but it was not verified with a working hardware key (the test phone's volume-up key is broken; its interrupt count never moved).
+- Turning off the HDMI signal and putting the TV to sleep over CEC need the box connected to a TV with CEC on (Anynet+, SimpLink, Bravia Sync and so on, depending on the brand). Without a TV only the commands themselves were verified.
+- After a power cut the box boots normally (awake) and the helper starts by itself.
+
+## Building
+
+Needs a JDK and the Android SDK packages `platforms;android-35` and `build-tools;35.0.0`. No Gradle or Android Studio.
+
+```bash
+./build.sh
+```
+
+Output goes to `dist/`:
+
+- `n1-remote.apk`: the phone app
+- `n1-standby-helper.apk`: the box helper
+- `n1-tools.dex`: box-side test tools
+
+Point `ANDROID_HOME` at your SDK (default: Homebrew's `android-commandlinetools`). The signing key defaults to `n1remote.keystore`, created on the first build and ignored by git. Keep using the same key, or Android refuses to install an update over the old version.
+
+### CI (GitHub Actions)
+
+On every push to `main`, every `v*` tag and every pull request, [`.github/workflows/build.yml`](.github/workflows/build.yml):
+
+1. installs the SDK packages;
+2. checks the scripts' syntax;
+3. builds all three outputs and uploads them as an artifact.
+
+By default CI signs with a throwaway key. Those APKs are fine for testing but **won't install over** builds signed with your own key. To have CI sign with yours, add two repository secrets (Settings → Secrets):
+
+- `KEYSTORE_B64`: the output of `base64 -i n1remote.keystore`;
+- `KS_PASS`: the keystore password.
+
+## Self-test
+
+With the helper installed, one command checks the whole box side. Only Python 3 is needed, no adb:
+
+```bash
+python3 tools/selftest.py <box-ip>
+```
+
+It registers a virtual Bluetooth remote on the box, which takes exactly the same path as the phone, then checks and prints PASS / FAIL for:
+
+- kernel key codes match the descriptor, Android picks `Generic.kl`, and the device counts as a remote (not a keyboard or gamepad);
+- all 11 keys reach Android with the right key codes;
+- a D-pad key can be held (that is what key repeat relies on);
+- the helper gets the TV key;
+- standby caps the CPU at 500 MHz and swallows other keys; wake restores it.
+
+With `--phicomm` it also checks the original remote's mapping, by posing as device ID `7045:1820` and pressing its power key twice.
+
+It takes about a minute. The box screen moves around meanwhile and ends on the home screen. Make sure nothing else holds the box's adb while it runs.
+
+## Developer tools
+
+Push `dist/n1-tools.dex` to the box and run it with `app_process`:
+
+- `n1.tools.UhidTest`: registers a virtual HID remote on the Bluetooth bus through `/dev/uhid` and presses the keys you ask for. It takes exactly the kernel and Android path of a real Bluetooth remote, so you can check key mapping without real hardware.
+  - `UHID_ID=vvvv:pppp` poses as a given device ID; `UHID_NAME=name` sets the device name.
+  - Arguments: a number presses that bit, `wN` waits N ms, `hB:N` holds bit B for N ms.
+- `n1.tools.BtCtl off|on|state`: turns the box's Bluetooth off or on.
+
+```bash
+python3 tools/adb_tcp.py <box-ip> --push dist/n1-tools.dex /data/local/tmp/n1-tools.dex
+```
+
+```bash
+adb shell 'UHID_ID=7045:1820 CLASSPATH=/data/local/tmp/n1-tools.dex app_process /system/bin n1.tools.UhidTest 3000 0 w5000 0'
+```
+
+The example poses as the original remote and presses its power key (bit 0) twice. When testing the standby helper, don't keep an adb session open in the foreground: it holds adbd and the helper can't run its commands. Start the test with `setsid` in the background and disconnect; see [docs/findings.md](docs/findings.md).
+
+## Third-party content
+
+- Key icons from [Material Icons](https://github.com/google/material-design-icons), Apache License 2.0.
+- The key layout files in `box-config/` come from the box firmware; their header says AOSP, Apache License 2.0.
+
+## License
+
+[GPL-3.0](LICENSE). The Apache License 2.0 material listed above keeps its own license.

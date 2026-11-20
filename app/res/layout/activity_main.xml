@@ -19,7 +19,7 @@
             android:layout_height="wrap_content"
             android:gravity="center"
             android:minLines="2"
-            android:text="正在初始化…"
+            android:text="@string/status_init"
             android:textColor="#FFB0B0B5"
             android:textSize="15sp" />
 
@@ -37,7 +37,7 @@
                 android:layout_weight="1"
                 android:background="@drawable/bg_input"
                 android:fontFamily="monospace"
-                android:hint="盒子蓝牙地址 AA:BB:CC:DD:EE:FF"
+                android:hint="@string/mac_hint"
                 android:importantForAutofill="no"
                 android:inputType="textCapCharacters|textNoSuggestions"
                 android:maxLength="17"
@@ -53,13 +53,13 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="6dp"
-                android:text="已配对" />
+                android:text="@string/paired" />
 
             <Button
                 android:id="@+id/connect"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="连接" />
+                android:text="@string/connect" />
         </LinearLayout>
 
         <LinearLayout
@@ -99,7 +99,7 @@
                         android:layout_height="56dp"
                         android:layout_marginTop="4dp"
                         android:background="@drawable/btn_round"
-                        android:contentDescription="盒子电源"
+                        android:contentDescription="@string/cd_power"
                         android:src="@drawable/ic_power"
                         android:tint="#FFE5484D" />
                 </LinearLayout>
@@ -114,7 +114,7 @@
                     android:gravity="center"
                     android:paddingStart="12dp"
                     android:paddingEnd="12dp"
-                    android:text="触控板"
+                    android:text="@string/mode_touchpad"
                     android:textColor="#FFB0B0B5"
                     android:textSize="13sp" />
 
@@ -139,7 +139,7 @@
                         android:layout_height="56dp"
                         android:layout_marginTop="4dp"
                         android:background="@drawable/btn_round"
-                        android:contentDescription="电视电源（HDMI-CEC）"
+                        android:contentDescription="@string/cd_tv"
                         android:src="@drawable/ic_power"
                         android:tint="#FFE6E6EA" />
                 </LinearLayout>
@@ -169,7 +169,7 @@
                     android:layout_width="60dp"
                     android:layout_height="60dp"
                     android:background="@drawable/btn_round"
-                    android:contentDescription="返回"
+                    android:contentDescription="@string/cd_back"
                     android:src="@drawable/ic_back"
                     android:tint="#FFE6E6EA" />
 
@@ -180,7 +180,7 @@
                     android:layout_marginStart="22dp"
                     android:layout_marginEnd="22dp"
                     android:background="@drawable/btn_round"
-                    android:contentDescription="语音"
+                    android:contentDescription="@string/cd_voice"
                     android:src="@drawable/ic_mic"
                     android:tint="#FFF5A623" />
 
@@ -189,7 +189,7 @@
                     android:layout_width="60dp"
                     android:layout_height="60dp"
                     android:background="@drawable/btn_round"
-                    android:contentDescription="音量加"
+                    android:contentDescription="@string/cd_vol_up"
                     android:src="@drawable/ic_add"
                     android:tint="#FFE6E6EA" />
             </LinearLayout>
@@ -205,7 +205,7 @@
                     android:layout_width="60dp"
                     android:layout_height="60dp"
                     android:background="@drawable/btn_round"
-                    android:contentDescription="主页"
+                    android:contentDescription="@string/cd_home"
                     android:src="@drawable/ic_home"
                     android:tint="#FFE6E6EA" />
 
@@ -216,7 +216,7 @@
                     android:layout_marginStart="22dp"
                     android:layout_marginEnd="22dp"
                     android:background="@drawable/btn_round"
-                    android:contentDescription="菜单"
+                    android:contentDescription="@string/cd_menu"
                     android:src="@drawable/ic_menu"
                     android:tint="#FFE6E6EA" />
 
@@ -225,7 +225,7 @@
                     android:layout_width="60dp"
                     android:layout_height="60dp"
                     android:background="@drawable/btn_round"
-                    android:contentDescription="音量减"
+                    android:contentDescription="@string/cd_vol_down"
                     android:src="@drawable/ic_remove"
                     android:tint="#FFE6E6EA" />
             </LinearLayout>

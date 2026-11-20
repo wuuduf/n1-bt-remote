@@ -1,5 +1,52 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">N1 遥控器</string>
-    <string name="hint">首次使用：填上盒子的蓝牙地址（盒子 设置 → 关于 → 状态 里能看到），点「连接」。手机和电视上都会弹出配对确认，两边都选「配对」。以后打开 App 会自动重连，断线后也会自动重连 3 分钟。连着盒子时，手机侧面的音量键调的是盒子的音量。\n\nTV 键通过 HDMI-CEC 单独开关电视。中间的「触控板」按钮可以把方向键换成滑动触控区。\n\n电源键也走蓝牙，需要盒子上装好「N1 待机助手」：待机时盒子回到桌面、关掉画面和 HDMI 信号，并通过 HDMI-CEC 让电视待机，其他按键暂时不响应；再按一次恢复。</string>
+    <string name="app_name">N1 Remote</string>
+    <string name="hint">First time: enter the box\'s Bluetooth address (box Settings → About → Status) and tap Connect. Confirm the pairing on both the phone and the TV. The app reconnects by itself next time, and keeps retrying for 3 minutes after the link drops. Android only lets the app in the foreground act as a remote, so it reconnects when you come back to it. While connected, the phone\'s volume keys change the box volume.\n\nTV turns only the TV on or off over HDMI-CEC. The Touchpad button in the middle swaps the D-pad for a swipe pad: one swipe moves one item, rest your finger after a swipe to keep moving.\n\nThe power key needs the N1 standby helper on the box: in standby the box goes home, blanks the screen and HDMI signal, asks the TV to sleep over CEC and ignores other keys. Press it again to wake.</string>
+    <string name="status_init">Starting…</string>
+    <string name="mac_hint">Box Bluetooth address AA:BB:CC:DD:EE:FF</string>
+    <string name="paired">Paired</string>
+    <string name="connect">Connect</string>
+    <string name="disconnect">Disconnect</string>
+    <string name="mode_touchpad">Touchpad</string>
+    <string name="mode_dpad">D-pad</string>
+    <string name="cd_power">Box power</string>
+    <string name="cd_tv">TV power (HDMI-CEC)</string>
+    <string name="cd_back">Back</string>
+    <string name="cd_voice">Voice</string>
+    <string name="cd_vol_up">Volume up</string>
+    <string name="cd_home">Home</string>
+    <string name="cd_menu">Menu</string>
+    <string name="cd_vol_down">Volume down</string>
+    <string name="pad_line1">Swipe = move one</string>
+    <string name="pad_line2">Swipe and hold = keep moving</string>
+    <string name="pad_line3">Tap = OK</string>
+    <string name="device_label">%1$s (%2$s)</string>
+    <string name="unnamed">(no name)</string>
+    <string name="pick_title">Choose the box</string>
+    <string name="no_bonded">This phone has no paired devices yet</string>
+    <string name="not_connected">Not connected to the box yet</string>
+    <string name="err_permission">Bluetooth needs the Nearby devices permission. Grant it to this app in system settings.</string>
+    <string name="err_android9">Android 9 or newer is needed to act as a Bluetooth remote</string>
+    <string name="err_no_bt">This phone has no Bluetooth</string>
+    <string name="bt_turn_on">Turn on Bluetooth first</string>
+    <string name="bt_off">Bluetooth is off</string>
+    <string name="err_mac">Address looks wrong, it should be like AA:BB:CC:DD:EE:FF (box Settings → About → Status)</string>
+    <string name="st_starting">Starting the Bluetooth HID service…</string>
+    <string name="st_service_lost">The Bluetooth HID service went away, reopen the app</string>
+    <string name="st_no_hid">This phone has no Bluetooth HID device mode (needs Android 9+)</string>
+    <string name="st_registering">Registering Bluetooth HID…</string>
+    <string name="st_register_failed">Could not register HID: another Bluetooth keyboard/remote app may be using it, close it and retry</string>
+    <string name="st_not_ready">HID service not ready yet, will connect when it is</string>
+    <string name="st_pairing">Pairing… confirm on both the phone and the TV</string>
+    <string name="st_pair_failed_start">Could not start pairing: check the box Bluetooth is on and the address is right</string>
+    <string name="st_connecting">Connecting to %1$s…</string>
+    <string name="st_connect_failed">Could not start the connection</string>
+    <string name="st_reregistering">Registering Bluetooth HID again…</string>
+    <string name="st_reconnect_gave_up">Can\'t reach the box (powered off or out of range?), tap Connect to retry</string>
+    <string name="st_reconnecting">Link lost, reconnecting… (try %1$d)</string>
+    <string name="st_pair_failed">Pairing failed (rejected or timed out), tap Connect again</string>
+    <string name="st_backgrounded">Android drops the Bluetooth remote while the app is in the background; it reconnects when you come back</string>
+    <string name="st_ready">Ready: check the box address and tap Connect</string>
+    <string name="st_connected">Connected: %1$s</string>
+    <string name="st_disconnected">Disconnected, tap Connect to reconnect</string>
 </resources>

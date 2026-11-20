@@ -12,7 +12,7 @@ import java.nio.ByteOrder;
  * so the kernel hid-input mapping and Android key layout can be checked
  * without the phone.
  *
- * Usage: [UHID_ID=vvvv:pppp] UhidTest <holdMs> [bit ...]
+ * Usage: [UHID_ID=vvvv:pppp] [UHID_NAME=name] UhidTest <holdMs> [bit ...]
  *   holdMs   how long the device stays registered before and after the presses
  *   bit      bit index in the 14-key bitmap to press and release, e.g. 8 9;
  *            wN waits N ms; hB:N holds bit B down for N ms
@@ -34,9 +34,12 @@ public final class UhidTest {
     static boolean v2;
 
     static int vid = 0x1234, pid = 0x5678;
+    static String name = "N1 Test Remote";
 
     public static void main(String[] args) throws Exception {
         String id = System.getenv("UHID_ID"); // e.g. 7045:1820 to pose as the Phicomm remote
+        String n = System.getenv("UHID_NAME");
+        if (n != null && !n.isEmpty()) name = n;
         if (id != null && id.contains(":")) {
             vid = Integer.parseInt(id.split(":")[0], 16);
             pid = Integer.parseInt(id.split(":")[1], 16);
@@ -93,7 +96,7 @@ public final class UhidTest {
     static void createV2(RandomAccessFile f) throws Exception {
         ByteBuffer b = le(4 + 128 + 64 + 64 + 2 + 2 + 16 + 4096);
         b.putInt(UHID_CREATE2);
-        putStr(b, "ClaudeTestRemote", 128);
+        putStr(b, name, 128);
         putStr(b, "", 64);
         putStr(b, "", 64);
         b.putShort((short) DESC.length);
@@ -111,7 +114,7 @@ public final class UhidTest {
         long addr = fa.getLong(desc);
         ByteBuffer b = le(4 + 128 + 64 + 64 + 8 + 2 + 2 + 16);
         b.putInt(UHID_CREATE);
-        putStr(b, "ClaudeTestRemote", 128);
+        putStr(b, name, 128);
         putStr(b, "", 64);
         putStr(b, "", 64);
         b.putLong(addr);

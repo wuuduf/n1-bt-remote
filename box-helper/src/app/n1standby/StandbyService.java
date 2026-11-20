@@ -27,6 +27,9 @@ public final class StandbyService extends AccessibilityService {
 
     /** What the phone remote's power button sends (HID Consumer 0x89, KEY_TV). */
     static final int TOGGLE_KEY = KeyEvent.KEYCODE_TV;
+    /** Virtual remote that tools/selftest.py registers; its keys get logged for the test. */
+    static final String SELFTEST_DEVICE = "N1 SelfTest";
+
     /** What the phone remote's TV button sends (HID Consumer 0x8D, KEY_PROGRAM). */
     static final int TV_POWER_KEY = KeyEvent.KEYCODE_GUIDE;
 
@@ -51,14 +54,14 @@ public final class StandbyService extends AccessibilityService {
             + "printf '\\100\\004' > /dev/cec 2>/dev/null; "                // CEC Image View On -> TV
             + "PA=$(cat /sys/class/cec/physical_addr); "
             + "printf \"\\117\\202\\x${PA%??}\\x${PA#??}\" > /dev/cec 2>/dev/null; " // CEC Active Source
-            + "rm -f " + MARK + "; echo awake";
+            + "rm -f " + MARK + "; echo \"awake max=$(cat " + CPU + ")\"";
     private static final String SLEEP =
             "input keyevent HOME; "
             + "echo 1 > /sys/class/graphics/fb0/blank; "
             + "echo 0 > /sys/class/amhdmitx/amhdmitx0/phy; "
             + "printf '\\100\\066' > /dev/cec 2>/dev/null; "                // CEC Standby -> TV
             + "cat " + CPU + " > " + CPU_SAVED + "; echo " + STANDBY_MAX_KHZ + " > " + CPU + "; "
-            + "touch " + MARK + "; echo standby";
+            + "touch " + MARK + "; echo \"standby max=$(cat " + CPU + ")\"";
     private static final String TOGGLE = "if [ -e " + MARK + " ]; then " + WAKE + "; else " + SLEEP + "; fi";
     private static final String QUERY = "[ -e " + MARK + " ] && echo standby || echo awake";
 
@@ -82,6 +85,10 @@ public final class StandbyService extends AccessibilityService {
 
     @Override
     public boolean onKeyEvent(KeyEvent e) {
+        if (e.getDevice() != null && SELFTEST_DEVICE.equals(e.getDevice().getName())) {
+            Log.i(TAG, "selftest key code=" + e.getKeyCode() + " action=" + e.getAction()
+                    + " repeat=" + e.getRepeatCount() + " standby=" + standby);
+        }
         if (e.getKeyCode() == TOGGLE_KEY) {
             if (e.getAction() == KeyEvent.ACTION_UP && !busy) toggle();
             return true;

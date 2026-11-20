@@ -107,7 +107,7 @@ final class HidRemote {
     }
 
     void start() {
-        status(ST_BUSY, "正在启动蓝牙 HID 服务…");
+        status(ST_BUSY, s(R.string.st_starting));
         boolean ok = adapter.getProfileProxy(ctx, new BluetoothProfile.ServiceListener() {
             @Override
             public void onServiceConnected(int profile, BluetoothProfile proxy) {
@@ -120,10 +120,10 @@ final class HidRemote {
                 hid = null;
                 registered = false;
                 connected = null;
-                status(ST_ERROR, "蓝牙 HID 服务断开了，重开 App 试试");
+                status(ST_ERROR, s(R.string.st_service_lost));
             }
         }, BluetoothProfile.HID_DEVICE);
-        if (!ok) status(ST_ERROR, "这台手机没有蓝牙 HID 设备模式（需要 Android 9 及以上）");
+        if (!ok) status(ST_ERROR, s(R.string.st_no_hid));
     }
 
     private void register() {
@@ -138,10 +138,19 @@ final class HidRemote {
         retry.postDelayed(() -> {
             if (hid == null || registered) return;
             if (++registerAttempts < 5) {
-                status(ST_BUSY, "正在注册蓝牙 HID…");
-                register();
+                status(ST_BUSY, s(R.string.st_registering));
+                // Registering while the previous process is still being unregistered fails
+                // natively, yet the service keeps our uid as "registered" and refuses every
+                // retry ("another app is registered"). Clearing our own stale entry fixes it.
+                try {
+                    hid.unregisterApp();
+                } catch (RuntimeException ignored) {
+                }
+                retry.postDelayed(() -> {
+                    if (hid != null && !registered) register();
+                }, 500);
             } else {
-                status(ST_ERROR, "注册 HID 失败：可能有别的蓝牙键盘/遥控 App 正占用，关掉它再试");
+                status(ST_ERROR, s(R.string.st_register_failed));
             }
         }, 1500);
     }
@@ -166,18 +175,18 @@ final class HidRemote {
     void connect(BluetoothDevice device) {
         target = device;
         if (!registered || hid == null) {
-            status(ST_BUSY, "HID 服务还没就绪，就绪后会自动连接");
+            status(ST_BUSY, s(R.string.st_not_ready));
             return;
         }
         if (device.getBondState() != BluetoothDevice.BOND_BONDED) {
-            status(ST_BUSY, "正在配对…手机和电视上都会弹出确认，两边都点「配对」");
+            status(ST_BUSY, s(R.string.st_pairing));
             if (device.getBondState() == BluetoothDevice.BOND_NONE && !device.createBond()) {
-                status(ST_ERROR, "发起配对失败，确认盒子蓝牙已打开、地址没填错");
+                status(ST_ERROR, s(R.string.st_pair_failed_start));
             }
             return;
         }
-        status(ST_BUSY, "正在连接 " + label(device) + "…");
-        if (!hid.connect(device)) status(ST_ERROR, "发起连接失败");
+        status(ST_BUSY, s(R.string.st_connecting, label(device)));
+        if (!hid.connect(device)) status(ST_ERROR, s(R.string.st_connect_failed));
     }
 
     /** User asked to disconnect: forget the target so nothing reconnects behind their back. */
@@ -192,7 +201,7 @@ final class HidRemote {
         if (hid == null) return;
         if (!registered) {
             registerAttempts = 0;
-            status(ST_BUSY, "正在重新注册蓝牙 HID…");
+            status(ST_BUSY, s(R.string.st_reregistering));
             register();
         } else {
             ensureConnected();
@@ -221,11 +230,11 @@ final class HidRemote {
         }
         if (SystemClock.uptimeMillis() > reconnectUntil) {
             reconnecting = false;
-            status(ST_READY, "连不上盒子（可能断电了或不在附近），点「连接」再试");
+            status(ST_READY, s(R.string.st_reconnect_gave_up));
             return;
         }
         reconnectTries++;
-        status(ST_BUSY, "连接断开，正在自动重连…（第 " + reconnectTries + " 次）");
+        status(ST_BUSY, s(R.string.st_reconnecting, reconnectTries));
         hid.connect(target);
         retry.postDelayed(reconnectTick, RECONNECT_EVERY_MS);
     }
@@ -240,7 +249,7 @@ final class HidRemote {
         if (state == BluetoothDevice.BOND_BONDED) {
             connect(device);
         } else if (state == BluetoothDevice.BOND_NONE) {
-            status(ST_ERROR, "配对没成功（被拒绝或超时），再点一次「连接」");
+            status(ST_ERROR, s(R.string.st_pair_failed));
         }
     }
 
@@ -270,14 +279,14 @@ final class HidRemote {
                 connected = null;
                 pressed = 0;
                 stopReconnecting();
-                status(ST_IDLE, "App 在后台时系统会断开蓝牙遥控，回到这里会自动重连");
+                status(ST_IDLE, s(R.string.st_backgrounded));
                 return;
             }
             if (target == null && plugged != null) target = plugged;
             if (target != null && target.getBondState() == BluetoothDevice.BOND_BONDED) {
                 connect(target);
             } else {
-                status(ST_READY, "就绪：确认盒子地址后点「连接」");
+                status(ST_READY, s(R.string.st_ready));
             }
         }
 
@@ -288,10 +297,10 @@ final class HidRemote {
                     connected = device;
                     pressed = 0;
                     stopReconnecting();
-                    status(ST_CONNECTED, "已连接：" + label(device));
+                    status(ST_CONNECTED, s(R.string.st_connected, label(device)));
                     break;
                 case BluetoothProfile.STATE_CONNECTING:
-                    if (!reconnecting) status(ST_BUSY, "正在连接 " + label(device) + "…");
+                    if (!reconnecting) status(ST_BUSY, s(R.string.st_connecting, label(device)));
                     break;
                 case BluetoothProfile.STATE_DISCONNECTED:
                     if (connected == null || connected.equals(device)) {
@@ -299,7 +308,7 @@ final class HidRemote {
                         pressed = 0;
                         if (reconnecting) break;           // a retry failed; the loop goes on
                         if (target != null) ensureConnected();
-                        if (!reconnecting) status(ST_READY, "已断开，点「连接」重连");
+                        if (!reconnecting) status(ST_READY, s(R.string.st_disconnected));
                     }
                     break;
                 default:
@@ -318,13 +327,17 @@ final class HidRemote {
         }
     };
 
-    private static String label(BluetoothDevice d) {
+    private String s(int id, Object... args) {
+        return ctx.getString(id, args);
+    }
+
+    private String label(BluetoothDevice d) {
         String name = null;
         try {
             name = d.getName();
         } catch (SecurityException ignored) {
         }
-        return name == null || name.isEmpty() ? d.getAddress() : name + "（" + d.getAddress() + "）";
+        return name == null || name.isEmpty() ? d.getAddress() : s(R.string.device_label, name, d.getAddress());
     }
 
     private void status(int state, String text) {

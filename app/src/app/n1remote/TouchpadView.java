@@ -83,9 +83,9 @@ public final class TouchpadView extends View {
         box.set(0, 0, getWidth(), getHeight());
         c.drawRoundRect(box, radius, radius, System.currentTimeMillis() < flashUntil ? flash : bg);
         float cy = getHeight() / 2f;
-        c.drawText("划一下移一格", getWidth() / 2f, cy - hint.getTextSize() * 0.9f, hint);
-        c.drawText("划完停住不松 = 连续移动", getWidth() / 2f, cy + hint.getTextSize() * 0.5f, hint);
-        c.drawText("轻点 = OK", getWidth() / 2f, cy + hint.getTextSize() * 1.9f, hint);
+        c.drawText(getContext().getString(R.string.pad_line1), getWidth() / 2f, cy - hint.getTextSize() * 0.9f, hint);
+        c.drawText(getContext().getString(R.string.pad_line2), getWidth() / 2f, cy + hint.getTextSize() * 0.5f, hint);
+        c.drawText(getContext().getString(R.string.pad_line3), getWidth() / 2f, cy + hint.getTextSize() * 1.9f, hint);
     }
 
     private void flash() {

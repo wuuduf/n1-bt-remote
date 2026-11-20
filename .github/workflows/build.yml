@@ -1,0 +1,56 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK packages
+        run: |
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKM" --licenses > /dev/null
+          "$SDKM" "platforms;android-35" "build-tools;35.0.0" > /dev/null
+
+      - name: Lint scripts
+        run: |
+          bash -n build.sh
+          bash -n scripts/box.sh
+          python3 -m py_compile tools/*.py
+
+      # With a KEYSTORE_B64 secret (base64 of n1remote.keystore) and KS_PASS, the APKs are
+      # signed with the release key and can update installed copies. Without it a throwaway
+      # key is generated: fine for testing, but those APKs won't install over release builds.
+      - name: Signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > n1remote.keystore
+            echo "signing with the release key"
+          else
+            echo "::notice::No KEYSTORE_B64 secret, signing with a throwaway key"
+          fi
+
+      - name: Build
+        env:
+          KS_PASS: ${{ secrets.KS_PASS || 'android' }}
+        run: ./build.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: n1-bt-remote-${{ github.sha }}
+          path: dist/
+          if-no-files-found: error

@@ -2,7 +2,9 @@
 
 把安卓手机变成**斐讯 N1** 盒子的蓝牙遥控器，包括开关机。盒子的固件里删掉了休眠功能，这里用一个盒子端的小助手补上了「待机 / 唤醒」。原装的斐讯蓝牙遥控器也能用这套开关机。
 
-> Turn an Android phone into a Bluetooth HID remote for the Phicomm N1 TV box (stock firmware V2.32), including power on/off. The phone acts as a standard Bluetooth HID remote via `BluetoothHidDevice`. The firmware has Android sleep removed, so a small accessibility-service helper on the box fakes a standby (screen and HDMI off, TV asleep via CEC) through the box's own root adbd. Docs are in Chinese; technical notes in [docs/findings.md](docs/findings.md).
+**中文** | [English](README.en.md)
+
+![build](https://github.com/wuuduf/n1-bt-remote/actions/workflows/build.yml/badge.svg)
 
 | 组件 | 装在哪 | 作用 |
 |---|---|---|
@@ -10,6 +12,9 @@
 | `n1-standby-helper.apk` | N1 盒子 | 无障碍服务：收到电源键后切换「假待机」，待机时吞掉其他按键 |
 | `scripts/box.sh` | 电脑 | 通过网络 ADB 给盒子装助手、改原装遥控器的按键映射 |
 | `tools/confirm_pairing.py` | 电脑 | 没有遥控器时，替你在盒子上点「配对」 |
+| `tools/selftest.py` | 电脑 | 一条命令自检盒子端：按键映射、长按、TV 键、待机、唤醒 |
+
+App 界面跟随手机的系统语言：中文手机显示中文，其他语言显示英文。
 
 ## 测试环境
 
@@ -144,17 +149,50 @@ scripts/box.sh <盒子IP> unpatch-remote
 
 SDK 路径用 `ANDROID_HOME` 指定，默认是 Homebrew 的 `android-commandlinetools`。签名密钥默认是 `n1remote.keystore`，第一次编译时自动生成，已经被 gitignore 忽略。之后要一直用同一个密钥，否则 Android 不允许覆盖安装。
 
+### 自动编译（GitHub Actions）
+
+每次推送到 `main`、打 `v*` 标签或提交 PR，[`.github/workflows/build.yml`](.github/workflows/build.yml) 都会做这几件事：
+
+1. 装好 SDK；
+2. 检查脚本语法；
+3. 编译三个产物，打包成 artifact 上传。
+
+默认用一把临时生成的密钥签名，这样的 APK 适合测试，但**不能覆盖安装**用你自己密钥签名的版本。如果想让 CI 用你的密钥签名，在仓库的 Settings → Secrets 里加两项：
+
+- `KEYSTORE_B64`：`base64 -i n1remote.keystore` 的输出；
+- `KS_PASS`：密钥密码。
+
+## 一键自检
+
+装好待机助手后，可以用一条命令检查盒子端是否一切正常。只需要 Python 3，不需要装 adb：
+
+```bash
+python3 tools/selftest.py <盒子IP>
+```
+
+它会在盒子上注册一个虚拟蓝牙遥控器，走的路径和手机完全一样。然后逐项检查并输出 PASS / FAIL：
+
+- 内核键码和描述符一致，Android 用的是 `Generic.kl`，设备类型是遥控器（不是键盘或手柄）；
+- 11 个按键都以正确的键值到达 Android；
+- 方向键能长按（长按连发靠这个）；
+- TV 键被助手收到；
+- 待机时 CPU 上限降到 500 MHz、其他按键被吞掉；唤醒后恢复。
+
+加上 `--phicomm` 时，还会检查原装斐讯遥控器的映射：冒充设备 ID `7045:1820` 按两次电源键。
+
+整个过程大约一分钟，期间盒子画面会跟着跳动，结束时回到桌面。运行时不要有别的 adb 连着盒子。
+
 ## 开发与测试工具
 
 `dist/n1-tools.dex` 推到盒子上以后，用 `app_process` 运行：
 
 - `n1.tools.UhidTest`：通过 `/dev/uhid` 注册一个总线类型为蓝牙的虚拟 HID 遥控器，按指定的键。走的内核和 Android 路径跟真蓝牙遥控器完全一样，可以在不碰真设备的情况下验证按键映射。
-  - `UHID_ID=vvvv:pppp` 可以冒充指定的设备 ID。
-  - 参数里的 `wN` 表示等待 N 毫秒。
+  - `UHID_ID=vvvv:pppp` 可以冒充指定的设备 ID，`UHID_NAME=名字` 可以指定设备名。
+  - 参数里的数字表示按下哪一位，`wN` 表示等待 N 毫秒，`hB:N` 表示按住第 B 位 N 毫秒。
 - `n1.tools.BtCtl off|on|state`：开关盒子的蓝牙。
 
 ```bash
-adb push dist/n1-tools.dex /data/local/tmp/n1-tools.dex
+python3 tools/adb_tcp.py <盒子IP> --push dist/n1-tools.dex /data/local/tmp/n1-tools.dex
 ```
 
 ```bash

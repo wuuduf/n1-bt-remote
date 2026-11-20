@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">N1 待机助手</string>
-    <string name="service_desc">接收手机蓝牙遥控器的电源键，让盒子进入或退出待机（关画面、关 HDMI、CEC 关电视）。</string>
+    <string name="app_name">N1 standby helper</string>
+    <string name="service_desc">Takes the power and TV keys from the phone\'s Bluetooth remote and puts the box into or out of standby (screen and HDMI off, TV asleep over CEC).</string>
 </resources>

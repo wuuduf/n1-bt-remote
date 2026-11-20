@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">N1 遥控器</string>
+    <string name="hint">首次使用：填上盒子的蓝牙地址（盒子 设置 → 关于 → 状态 里能看到），点「连接」。手机和电视上都会弹出配对确认，两边都选「配对」。以后打开 App 会自动重连，断线后也会自动重连 3 分钟。Android 只允许前台的 App 当遥控器，切出去再回来会自动重连。连着盒子时，手机侧面的音量键调的是盒子的音量。\n\nTV 键通过 HDMI-CEC 单独开关电视。中间的「触控板」按钮可以把方向键换成滑动区：划一下移一格，划完手指停住就连续移动。\n\n电源键需要盒子上装好「N1 待机助手」：待机时盒子回到桌面、关掉画面和 HDMI 信号，并通过 HDMI-CEC 让电视待机，其他按键暂时不响应；再按一次恢复。</string>
+    <string name="status_init">正在初始化…</string>
+    <string name="mac_hint">盒子蓝牙地址 AA:BB:CC:DD:EE:FF</string>
+    <string name="paired">已配对</string>
+    <string name="connect">连接</string>
+    <string name="disconnect">断开</string>
+    <string name="mode_touchpad">触控板</string>
+    <string name="mode_dpad">方向键</string>
+    <string name="cd_power">盒子电源</string>
+    <string name="cd_tv">电视电源（HDMI-CEC）</string>
+    <string name="cd_back">返回</string>
+    <string name="cd_voice">语音</string>
+    <string name="cd_vol_up">音量加</string>
+    <string name="cd_home">主页</string>
+    <string name="cd_menu">菜单</string>
+    <string name="cd_vol_down">音量减</string>
+    <string name="pad_line1">划一下移一格</string>
+    <string name="pad_line2">划完停住不松 = 连续移动</string>
+    <string name="pad_line3">轻点 = OK</string>
+    <string name="device_label">%1$s（%2$s）</string>
+    <string name="unnamed">（无名称）</string>
+    <string name="pick_title">选择盒子</string>
+    <string name="no_bonded">手机还没有配对过任何设备</string>
+    <string name="not_connected">还没连上盒子</string>
+    <string name="err_permission">没有「附近的设备」权限就没法用蓝牙，请在系统设置里给这个 App 开权限</string>
+    <string name="err_android9">需要 Android 9 及以上才能当蓝牙遥控器</string>
+    <string name="err_no_bt">这台手机没有蓝牙</string>
+    <string name="bt_turn_on">请先打开蓝牙</string>
+    <string name="bt_off">蓝牙没打开</string>
+    <string name="err_mac">地址格式不对，应该像 AA:BB:CC:DD:EE:FF（盒子设置 → 关于 → 状态里能看到）</string>
+    <string name="st_starting">正在启动蓝牙 HID 服务…</string>
+    <string name="st_service_lost">蓝牙 HID 服务断开了，重开 App 试试</string>
+    <string name="st_no_hid">这台手机没有蓝牙 HID 设备模式（需要 Android 9 及以上）</string>
+    <string name="st_registering">正在注册蓝牙 HID…</string>
+    <string name="st_register_failed">注册 HID 失败：可能有别的蓝牙键盘/遥控 App 正占用，关掉它再试</string>
+    <string name="st_not_ready">HID 服务还没就绪，就绪后会自动连接</string>
+    <string name="st_pairing">正在配对…手机和电视上都会弹出确认，两边都点「配对」</string>
+    <string name="st_pair_failed_start">发起配对失败，确认盒子蓝牙已打开、地址没填错</string>
+    <string name="st_connecting">正在连接 %1$s…</string>
+    <string name="st_connect_failed">发起连接失败</string>
+    <string name="st_reregistering">正在重新注册蓝牙 HID…</string>
+    <string name="st_reconnect_gave_up">连不上盒子（可能断电了或不在附近），点「连接」再试</string>
+    <string name="st_reconnecting">连接断开，正在自动重连…（第 %1$d 次）</string>
+    <string name="st_pair_failed">配对没成功（被拒绝或超时），再点一次「连接」</string>
+    <string name="st_backgrounded">App 在后台时系统会断开蓝牙遥控，回到这里会自动重连</string>
+    <string name="st_ready">就绪：确认盒子地址后点「连接」</string>
+    <string name="st_connected">已连接：%1$s</string>
+    <string name="st_disconnected">已断开，点「连接」重连</string>
+</resources>

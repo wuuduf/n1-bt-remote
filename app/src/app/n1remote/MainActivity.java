@@ -104,7 +104,7 @@ public final class MainActivity extends Activity implements HidRemote.Listener {
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
         if (requestCode != REQ_PERMISSION) return;
         if (needsPermission()) {
-            onStatus(HidRemote.ST_ERROR, "没有「附近的设备」权限就没法用蓝牙，请在系统设置里给这个 App 开权限");
+            onStatus(HidRemote.ST_ERROR, getString(R.string.err_permission));
         } else {
             initBluetooth();
         }
@@ -112,17 +112,17 @@ public final class MainActivity extends Activity implements HidRemote.Listener {
 
     private void initBluetooth() {
         if (Build.VERSION.SDK_INT < 28) {
-            onStatus(HidRemote.ST_ERROR, "需要 Android 9 及以上才能当蓝牙遥控器");
+            onStatus(HidRemote.ST_ERROR, getString(R.string.err_android9));
             return;
         }
         BluetoothManager bm = getSystemService(BluetoothManager.class);
         adapter = bm == null ? null : bm.getAdapter();
         if (adapter == null) {
-            onStatus(HidRemote.ST_ERROR, "这台手机没有蓝牙");
+            onStatus(HidRemote.ST_ERROR, getString(R.string.err_no_bt));
             return;
         }
         if (!adapter.isEnabled()) {
-            onStatus(HidRemote.ST_IDLE, "请先打开蓝牙");
+            onStatus(HidRemote.ST_IDLE, getString(R.string.bt_turn_on));
             startActivityForResult(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE), REQ_ENABLE_BT);
             return;
         }
@@ -144,7 +144,7 @@ public final class MainActivity extends Activity implements HidRemote.Listener {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == REQ_ENABLE_BT) {
             if (adapter != null && adapter.isEnabled()) initBluetooth();
-            else onStatus(HidRemote.ST_ERROR, "蓝牙没打开");
+            else onStatus(HidRemote.ST_ERROR, getString(R.string.bt_off));
         }
     }
 
@@ -161,7 +161,7 @@ public final class MainActivity extends Activity implements HidRemote.Listener {
     private BluetoothDevice deviceFromField(boolean complain) {
         String addr = mac.getText().toString().trim().toUpperCase(Locale.ROOT);
         if (!BluetoothAdapter.checkBluetoothAddress(addr)) {
-            if (complain) onStatus(HidRemote.ST_ERROR, "地址格式不对，应该像 AA:BB:CC:DD:EE:FF（盒子设置 → 关于 → 状态里能看到）");
+            if (complain) onStatus(HidRemote.ST_ERROR, getString(R.string.err_mac));
             return null;
         }
         return adapter.getRemoteDevice(addr);
@@ -195,7 +195,7 @@ public final class MainActivity extends Activity implements HidRemote.Listener {
             return;
         }
         if (bonded == null || bonded.isEmpty()) {
-            Toast.makeText(this, "手机还没有配对过任何设备", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.no_bonded, Toast.LENGTH_SHORT).show();
             return;
         }
         final List<String> addrs = new ArrayList<>();
@@ -203,10 +203,10 @@ public final class MainActivity extends Activity implements HidRemote.Listener {
         for (BluetoothDevice d : bonded) {
             addrs.add(d.getAddress());
             String n = d.getName();
-            labels.add((n == null ? "（无名称）" : n) + "\n" + d.getAddress());
+            labels.add((n == null ? getString(R.string.unnamed) : n) + "\n" + d.getAddress());
         }
         new AlertDialog.Builder(this)
-                .setTitle("选择盒子")
+                .setTitle(R.string.pick_title)
                 .setItems(labels.toArray(new String[0]), (dlg, which) -> mac.setText(addrs.get(which)))
                 .show();
     }
@@ -256,13 +256,13 @@ public final class MainActivity extends Activity implements HidRemote.Listener {
         prefs.edit().putBoolean("touchpad", on).apply();
         findViewById(R.id.dpad).setVisibility(on ? View.GONE : View.VISIBLE);
         findViewById(R.id.touchpad).setVisibility(on ? View.VISIBLE : View.GONE);
-        ((TextView) findViewById(R.id.mode)).setText(on ? "方向键" : "触控板");
+        ((TextView) findViewById(R.id.mode)).setText(on ? R.string.mode_dpad : R.string.mode_touchpad);
     }
 
     /** One key press and release, for the swipe pad. */
     private void tapKey(int key) {
         if (remote == null || !remote.isConnected()) {
-            Toast.makeText(this, "还没连上盒子", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.not_connected, Toast.LENGTH_SHORT).show();
             return;
         }
         remote.press(key);
@@ -271,7 +271,7 @@ public final class MainActivity extends Activity implements HidRemote.Listener {
 
     private void pressKey(int key) {
         if (remote == null || !remote.isConnected()) {
-            Toast.makeText(this, "还没连上盒子", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.not_connected, Toast.LENGTH_SHORT).show();
             return;
         }
         remote.press(key);
@@ -300,7 +300,7 @@ public final class MainActivity extends Activity implements HidRemote.Listener {
             default: color = 0xFFB0B0B5; break;
         }
         status.setTextColor(color);
-        connectBtn.setText(hidState == HidRemote.ST_CONNECTED ? "断开" : "连接");
+        connectBtn.setText(hidState == HidRemote.ST_CONNECTED ? R.string.disconnect : R.string.connect);
     }
 
     @Override

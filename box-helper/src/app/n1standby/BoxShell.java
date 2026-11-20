@@ -61,8 +61,8 @@ final class BoxShell {
         send(s.getOutputStream(), CNXN, 0x01000000, 256 * 1024,
                 "host::\0".getBytes(StandardCharsets.UTF_8));
         Msg m = read(new DataInputStream(s.getInputStream()));
-        if (m.cmd == AUTH) throw new IOException("盒子的 ADB 需要授权");
-        if (m.cmd != CNXN) throw new IOException("不是 ADB 服务");
+        if (m.cmd == AUTH) throw new IOException("adbd wants key authentication");
+        if (m.cmd != CNXN) throw new IOException("not an adb server");
         return new String(m.data, StandardCharsets.UTF_8);
     }
 
