@@ -68,10 +68,11 @@ After every boot and every helper update it checks again and repairs the setup i
 ### 3. Pair the phone
 
 1. Install `n1-remote.apk` on the phone, open it and allow the Nearby devices permission. Android 13 and later also ask for notifications: allow them, the notification buttons need it.
-2. Enter the box's Bluetooth address. It is in the box's Settings → About → Status, or run `python3 tools/adb_tcp.py <box-ip> 'settings get secure bluetooth_address'`.
-3. Tap Connect. Both the phone and the box ask to confirm the pairing; confirm on both.
+2. Find the box. Open the Bluetooth settings page on the box and leave it open: the box can only be found while that page is showing. Without a remote, open it with `python3 tools/adb_tcp.py <box-ip> 'am start -a android.settings.BLUETOOTH_SETTINGS'`. Then tap Find on the phone and pick "p230 (Phicomm N1)" under Nearby; p230 is the N1's default Bluetooth name. The list only shows classic Bluetooth devices that can take the remote, not BLE-only gadgets.
+   - Or skip the scan: enter the box's Bluetooth address and tap Connect. It is in the box's Settings → About → Status, or run `python3 tools/adb_tcp.py <box-ip> 'settings get secure bluetooth_address'`.
+3. Picking the box starts pairing. Both the phone and the box ask to confirm the pairing; confirm on both.
    - The box shows two dialogs at once (phone-style Settings and TV Settings). The one on top is the one that counts.
-   - **No remote?** Run this on your computer first, then tap Connect on the phone. It only confirms a dialog that names your phone:
+   - **No remote?** Run this on your computer first, then pick the box (or tap Connect) on the phone. It only confirms a dialog that names your phone:
 
      ```bash
      python3 tools/confirm_pairing.py <box-ip> "<phone's Bluetooth name>"

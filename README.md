@@ -68,10 +68,11 @@ python3 tools/adb_tcp.py <盒子IP> 'getprop ro.build.display.id'
 ### 3. 手机配对
 
 1. 手机装上 `n1-remote.apk`，打开后允许「附近的设备」权限。Android 13 及以上还会问通知权限，建议允许，通知栏的按钮要靠它显示。
-2. 填上盒子的蓝牙地址：盒子 设置 → 关于 → 状态 里能看到，也可以用 `python3 tools/adb_tcp.py <盒子IP> 'settings get secure bluetooth_address'` 查。
-3. 点「连接」。手机和盒子上都会弹出配对确认，两边都点「配对」。
+2. 找到盒子：先在盒子上打开蓝牙设置页并停在那里，盒子只有在这个页面打开时才能被搜到。没有遥控器的话，可以用 `python3 tools/adb_tcp.py <盒子IP> 'am start -a android.settings.BLUETOOTH_SETTINGS'` 打开。然后在手机上点「查找」，在「附近的设备」里选「p230（斐讯 N1）」，p230 是 N1 默认的蓝牙名称。列表只显示能连的经典蓝牙设备，只支持 BLE 的手环、耳机仓之类不会出现。
+   - 也可以不扫描，直接填盒子的蓝牙地址再点「连接」。地址在盒子 设置 → 关于 → 状态 里能看到，也可以用 `python3 tools/adb_tcp.py <盒子IP> 'settings get secure bluetooth_address'` 查。
+3. 选中盒子后会自动开始配对。手机和盒子上都会弹出配对确认，两边都点「配对」。
    - 盒子会同时弹出两个确认框（手机版设置和 TV 版设置），最上面那个才有效。
-   - **没有遥控器的话**，先在电脑上运行下面的命令，再去手机上点「连接」。它只会给指定名字的设备点确认：
+   - **没有遥控器的话**，先在电脑上运行下面的命令，再去手机上选中盒子（或点「连接」）。它只会给指定名字的设备点确认：
 
      ```bash
      python3 tools/confirm_pairing.py <盒子IP> "<手机的蓝牙名称>"

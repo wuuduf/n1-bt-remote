@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">N1 遥控器</string>
-    <string name="hint">首次使用：填上盒子的蓝牙地址（盒子 设置 → 关于 → 状态 里能看到），点「连接」。手机和电视上都会弹出配对确认，两边都选「配对」。以后打开 App 会自动重连，断线后也会自动重连 3 分钟。连上以后，切到别的 App 或锁屏也不会断开，通知栏里可以直接待机或断开。连着盒子时，手机侧面的音量键调的是盒子的音量。\n\nTV 键通过 HDMI-CEC 单独开关电视。中间的「触控板」按钮可以把方向键换成滑动区：划一下移一格，划完手指停住就连续移动。\n\n电源键需要盒子上装好「N1 待机助手」：待机时盒子回到桌面、关掉画面和 HDMI 信号，并通过 HDMI-CEC 让电视待机，其他按键暂时不响应；再按一次恢复。</string>
+    <string name="hint">首次使用：先在盒子上打开蓝牙设置页（停在这个页面时盒子才能被搜到），再点「查找」，选中盒子就会开始配对。斐讯 N1 的蓝牙名称默认是 p230。也可以直接填盒子的蓝牙地址（盒子 设置 → 关于 → 状态 里能看到）再点「连接」。手机和电视上都会弹出配对确认，两边都选「配对」。以后打开 App 会自动重连，断线后也会自动重连 3 分钟。连上以后，切到别的 App 或锁屏也不会断开，通知栏里可以直接待机或断开。连着盒子时，手机侧面的音量键调的是盒子的音量。\n\nTV 键通过 HDMI-CEC 单独开关电视。中间的「触控板」按钮可以把方向键换成滑动区：划一下移一格，划完手指停住就连续移动。\n\n电源键需要盒子上装好「N1 待机助手」：待机时盒子回到桌面、关掉画面和 HDMI 信号，并通过 HDMI-CEC 让电视待机，其他按键暂时不响应；再按一次恢复。</string>
     <string name="status_init">正在初始化…</string>
     <string name="mac_hint">盒子蓝牙地址 AA:BB:CC:DD:EE:FF</string>
-    <string name="paired">已配对</string>
+    <string name="find">查找</string>
     <string name="connect">连接</string>
     <string name="disconnect">断开</string>
     <string name="mode_touchpad">触控板</string>
@@ -24,7 +24,6 @@
     <string name="device_label">%1$s（%2$s）</string>
     <string name="unnamed">（无名称）</string>
     <string name="pick_title">选择盒子</string>
-    <string name="no_bonded">手机还没有配对过任何设备</string>
     <string name="not_connected">还没连上盒子</string>
     <string name="err_permission">没有「附近的设备」权限就没法用蓝牙，请在系统设置里给这个 App 开权限</string>
     <string name="err_android9">需要 Android 9 及以上才能当蓝牙遥控器</string>
@@ -47,10 +46,19 @@
     <string name="st_reconnecting">连接断开，正在自动重连…（第 %1$d 次）</string>
     <string name="st_pair_failed">配对没成功（被拒绝或超时），再点一次「连接」</string>
     <string name="st_backgrounded">App 在后台时系统会断开蓝牙遥控，回到这里会自动重连</string>
-    <string name="st_ready">就绪：确认盒子地址后点「连接」</string>
+    <string name="st_ready">就绪：点「查找」选择盒子，或填上盒子地址后点「连接」</string>
     <string name="st_connected">已连接：%1$s</string>
     <string name="st_disconnected">已断开，点「连接」重连</string>
     <string name="notif_channel">连接状态</string>
     <string name="notif_power">待机/唤醒</string>
     <string name="notif_sent_power">已发送「待机/唤醒」</string>
+    <string name="pick_paired">已配对</string>
+    <string name="pick_nearby">附近的设备</string>
+    <string name="pick_hint">找不到盒子？先在盒子上打开蓝牙设置页，停在这个页面时盒子才能被搜到。</string>
+    <string name="scan_running">正在扫描…</string>
+    <string name="scan_done">扫描结束</string>
+    <string name="scan_none">没找到设备</string>
+    <string name="scan_again">重新扫描</string>
+    <string name="scan_no_permission">没有「附近的设备」权限，只能从已配对的设备里选。也可以直接填盒子的蓝牙地址。</string>
+    <string name="likely_n1">%1$s（斐讯 N1）</string>
 </resources>

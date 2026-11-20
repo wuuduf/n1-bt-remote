@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">N1 Remote</string>
-    <string name="hint">First time: enter the box\'s Bluetooth address (box Settings → About → Status) and tap Connect. Confirm the pairing on both the phone and the TV. The app reconnects by itself next time, and keeps retrying for 3 minutes after the link drops. Once connected it stays connected in the background and with the phone locked, and the notification can put the box in standby or disconnect. While connected, the phone\'s volume keys change the box volume.\n\nTV turns only the TV on or off over HDMI-CEC. The Touchpad button in the middle swaps the D-pad for a swipe pad: one swipe moves one item, rest your finger after a swipe to keep moving.\n\nThe power key needs the N1 standby helper on the box: in standby the box goes home, blanks the screen and HDMI signal, asks the TV to sleep over CEC and ignores other keys. Press it again to wake.</string>
+    <string name="hint">First time: open the Bluetooth settings page on the box (it can only be found while that page is open), then tap Find and pick the box to pair. An N1 is called p230 by default. You can also enter the box\'s Bluetooth address (box Settings → About → Status) and tap Connect. Confirm the pairing on both the phone and the TV. The app reconnects by itself next time, and keeps retrying for 3 minutes after the link drops. Once connected it stays connected in the background and with the phone locked, and the notification can put the box in standby or disconnect. While connected, the phone\'s volume keys change the box volume.\n\nTV turns only the TV on or off over HDMI-CEC. The Touchpad button in the middle swaps the D-pad for a swipe pad: one swipe moves one item, rest your finger after a swipe to keep moving.\n\nThe power key needs the N1 standby helper on the box: in standby the box goes home, blanks the screen and HDMI signal, asks the TV to sleep over CEC and ignores other keys. Press it again to wake.</string>
     <string name="status_init">Starting…</string>
     <string name="mac_hint">Box Bluetooth address AA:BB:CC:DD:EE:FF</string>
-    <string name="paired">Paired</string>
+    <string name="find">Find</string>
     <string name="connect">Connect</string>
     <string name="disconnect">Disconnect</string>
     <string name="mode_touchpad">Touchpad</string>
@@ -24,7 +24,6 @@
     <string name="device_label">%1$s (%2$s)</string>
     <string name="unnamed">(no name)</string>
     <string name="pick_title">Choose the box</string>
-    <string name="no_bonded">This phone has no paired devices yet</string>
     <string name="not_connected">Not connected to the box yet</string>
     <string name="err_permission">Bluetooth needs the Nearby devices permission. Grant it to this app in system settings.</string>
     <string name="err_android9">Android 9 or newer is needed to act as a Bluetooth remote</string>
@@ -47,10 +46,19 @@
     <string name="st_reconnecting">Link lost, reconnecting… (try %1$d)</string>
     <string name="st_pair_failed">Pairing failed (rejected or timed out), tap Connect again</string>
     <string name="st_backgrounded">Android drops the Bluetooth remote while the app is in the background; it reconnects when you come back</string>
-    <string name="st_ready">Ready: check the box address and tap Connect</string>
+    <string name="st_ready">Ready: tap Find to choose the box, or enter its address and tap Connect</string>
     <string name="st_connected">Connected: %1$s</string>
     <string name="st_disconnected">Disconnected, tap Connect to reconnect</string>
     <string name="notif_channel">Connection</string>
     <string name="notif_power">Standby / wake</string>
     <string name="notif_sent_power">Sent standby / wake</string>
+    <string name="pick_paired">Paired</string>
+    <string name="pick_nearby">Nearby</string>
+    <string name="pick_hint">Can\'t find the box? Open the Bluetooth settings page on the box: it can only be found while that page is open.</string>
+    <string name="scan_running">Scanning…</string>
+    <string name="scan_done">Scan finished</string>
+    <string name="scan_none">No devices found</string>
+    <string name="scan_again">Scan again</string>
+    <string name="scan_no_permission">Without the Nearby devices permission only paired devices are listed. You can also enter the box\'s Bluetooth address.</string>
+    <string name="likely_n1">%1$s (Phicomm N1)</string>
 </resources>

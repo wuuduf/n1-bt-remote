@@ -107,6 +107,8 @@
 
 ## 10. 其他
 
+- **扫描找盒子**（App 2.5.0 起的「查找」）：盒子只有在手机版设置的蓝牙页面打开时才能被搜到（`android.settings.BLUETOOTH_SETTINGS` 对应 `com.android.settings/.Settings$BluetoothSettingsActivity`）。打开后，手机的经典蓝牙扫描能扫到它，名字是 `p230`（N1 的型号），类型是经典蓝牙（`DEVICE_TYPE_CLASSIC`）。实测一次扫描大约 12 秒，周围扫到约 80 个设备，其中约 75 个是只支持 BLE 的设备（大多没有名字），列表里直接过滤掉了。扫描权限用 `BLUETOOTH_SCAN` 加 `neverForLocation`，Android 12 起不需要定位权限。
+
 - 语音键：键值是 `VOICE_ASSIST`。系统会去启动 `android.speech.action.WEB_SEARCH`，但这台盒子上没有能处理它的应用。原装遥控器的布局文件里语音键也映射成这个值，结果应该一样。
 - 测试用的这台小米手机，实体音量 + 键的中断计数开机 5 天一直是 0（`/proc/interrupts` 里的 `volume_up`），键本身是坏的。所以「手机音量键转发给盒子」这个功能只写了代码，还没用实体键测通。
 - 盒子上有一个 `uiautomator`，可以配合 `input tap`，在没有遥控器的情况下操作界面（`tools/confirm_pairing.py` 就是这么做的）。小米手机要额外打开「USB 调试（安全设置）」，才允许 `input tap` 这类模拟点击。

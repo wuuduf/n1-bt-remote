@@ -2,7 +2,6 @@ package app.n1remote;
 
 import android.Manifest;
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
@@ -30,14 +29,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 
 /** The remote screen. The Bluetooth side lives in {@link RemoteService} so it survives the screen. */
 public final class MainActivity extends Activity implements HidRemote.Listener {
 
     /** No default box: the user types its Bluetooth address or picks it from bonded devices. */
     private static final String DEFAULT_MAC = "";
-    private static final int REQ_PERMISSION = 1, REQ_ENABLE_BT = 2;
+    private static final int REQ_PERMISSION = 1, REQ_ENABLE_BT = 2, REQ_SCAN = 3;
 
     private TextView status;
     private EditText mac;
@@ -95,7 +93,7 @@ public final class MainActivity extends Activity implements HidRemote.Listener {
         setTouchpad(prefs.getBoolean("touchpad", false));
 
         connectBtn.setOnClickListener(v -> onConnectClicked());
-        pickBtn.setOnClickListener(v -> pickBonded());
+        pickBtn.setOnClickListener(v -> onFindClicked());
 
         List<String> ask = new ArrayList<>();
         if (needsPermission()) ask.add(Manifest.permission.BLUETOOTH_CONNECT);
@@ -125,6 +123,10 @@ public final class MainActivity extends Activity implements HidRemote.Listener {
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
+        if (requestCode == REQ_SCAN) {
+            if (adapter != null) openPicker(); // without the permission it lists paired devices only
+            return;
+        }
         if (requestCode != REQ_PERMISSION) return;
         List<String> asked = Arrays.asList(permissions);
         // Connected before the user answered: the first notification was dropped, post it again.
@@ -213,29 +215,31 @@ public final class MainActivity extends Activity implements HidRemote.Listener {
         remote.connect(d);
     }
 
-    private void pickBonded() {
-        if (adapter == null) return;
-        Set<BluetoothDevice> bonded;
-        try {
-            bonded = adapter.getBondedDevices();
-        } catch (SecurityException e) {
+    /** Scanning needs its own permission: "Nearby devices" scan on Android 12+, location before. */
+    private static String scanPermission() {
+        return Build.VERSION.SDK_INT >= 31 ? Manifest.permission.BLUETOOTH_SCAN : Manifest.permission.ACCESS_FINE_LOCATION;
+    }
+
+    private void onFindClicked() {
+        if (adapter == null) {
+            onConnectClicked(); // Bluetooth isn't up yet: same path as Connect (permission, turn it on)
             return;
         }
-        if (bonded == null || bonded.isEmpty()) {
-            Toast.makeText(this, R.string.no_bonded, Toast.LENGTH_SHORT).show();
+        if (checkSelfPermission(scanPermission()) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[] {scanPermission()}, REQ_SCAN); // opens the picker either way
             return;
         }
-        final List<String> addrs = new ArrayList<>();
-        List<String> labels = new ArrayList<>();
-        for (BluetoothDevice d : bonded) {
-            addrs.add(d.getAddress());
-            String n = d.getName();
-            labels.add((n == null ? getString(R.string.unnamed) : n) + "\n" + d.getAddress());
-        }
-        new AlertDialog.Builder(this)
-                .setTitle(R.string.pick_title)
-                .setItems(labels.toArray(new String[0]), (dlg, which) -> mac.setText(addrs.get(which)))
-                .show();
+        openPicker();
+    }
+
+    private void openPicker() {
+        boolean canScan = checkSelfPermission(scanPermission()) == PackageManager.PERMISSION_GRANTED;
+        new BoxPicker(this, adapter, canScan, device -> {
+            mac.setText(device.getAddress());
+            prefs.edit().putString("mac", device.getAddress()).apply();
+            HidRemote remote = remote();
+            if (remote != null && !remote.isConnected()) remote.connect(device); // pairs first if needed
+        }).show();
     }
 
     private void bindKey(int viewId, final int key) {
