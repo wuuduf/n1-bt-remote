@@ -89,7 +89,16 @@
 - App 在 `onResume` 时检查：如果注册已被注销，就重新注册，然后自动重连，实测约 2 秒恢复。如果要在后台也保持连接，需要一个前台服务（常驻通知）。
 - **注册时序的坑**：旧进程被杀后，蓝牙服务要过一小会儿才注销完它的注册。如果新进程在这期间就去注册，底层会返回「忙」（`register_app() returned 4`）。可服务端已经把这个 uid 记成「已注册」，之后每次重试都会被 `failed because another app is registered` 挡回来，一直卡住。现在的做法是：重试前先调用一次 `unregisterApp()`，清掉这条属于自己的失效记录。实测连续强制重启 3 次，每次都能连上。
 
-## 9. 其他
+## 9. 助手怎么自己完成设置
+
+- App 安装时，Android 不会运行它的任何代码；无障碍服务又必须先在设置里启用才会启动。所以助手（1.3 起）加了一个能在盒子桌面打开的设置界面（`SetupActivity`）。第一次打开时，它通过 `127.0.0.1:5555` 的 root adbd 完成全部配置：启用无障碍服务、`power_key_definition=0`、修改原装遥控器的按键布局。之后在界面上逐项显示 ✔ / ✘。所有配置逻辑都集中在 `Setup.java` 一个地方，`scripts/box.sh install-helper` 只负责安装和打开。
+- `BootReceiver` 会接收 `BOOT_COMPLETED`、`MY_PACKAGE_REPLACED` 和 `MEDIA_MOUNTED`（原因见下），发现配置不完整就自动修复。它不会去动原装遥控器的按键布局，那项由用户在界面上选择。实测：手动关掉无障碍服务、把电源键改回 1 之后，覆盖安装一次助手，就自动修好了（日志 `boot check: ready=true`）。
+- **这套固件不给第三方 App 发开机广播。** 在 `ActivityManagerService.broadcastIntentLocked` 里，对 `BOOT_COMPLETED` 和 `LOCKED_BOOT_COMPLETED` 的每个清单接收器都做了检查：系统应用保留；其他应用只有包名在 `mBootCompletedWhiteListApps` 里才保留，否则直接移除。这个白名单读自 framework-res 的 `array/config_boot_completed_white_list`（`0x01070054`），而它是**空的**。所以真重启时，开机广播只发给了 `/system` 里的应用，在 root shell 里手动发给助手的开机广播也被丢掉了（广播历史里派发时间为空）。
+- 但存储挂载广播 `MEDIA_MOUNTED`（`file` scheme）不受这个限制，开机时第三方 App 也收得到（日志里 Link2SD 就是因此被唤起的）。所以助手把它当作开机触发；插 U 盘也会触发一次检查，检查本身没有副作用。
+- 在 adb shell 里用 `(sleep 1; reboot) &` 这种方式放到后台的命令，会在会话结束时被一起杀掉，盒子并没有重启。要重启就直接在前台执行 `reboot`，连接断开是正常的。
+- 自检时发现的一个坑：助手的 ADB 客户端原本只有一个 3 秒超时，而且对整条命令都生效。一次完整配置要调用好几次 `settings`，每次大约 1 秒，结果超时被当成「连不上」，界面显示全是 ✘，可实际上配置已经成功了。现在握手阶段 3 秒超时（用来尽快发现 adbd 被占用），命令执行阶段最多等 30 秒。
+
+## 10. 其他
 
 - 语音键：键值是 `VOICE_ASSIST`。系统会去启动 `android.speech.action.WEB_SEARCH`，但这台盒子上没有能处理它的应用。原装遥控器的布局文件里语音键也映射成这个值，结果应该一样。
 - 测试用的这台小米手机，实体音量 + 键的中断计数开机 5 天一直是 0（`/proc/interrupts` 里的 `volume_up`），键本身是坏的。所以「手机音量键转发给盒子」这个功能只写了代码，还没用实体键测通。

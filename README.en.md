@@ -11,8 +11,8 @@ webpad's firmware keeps the system framework of Phicomm's official V2.32, and V2
 | Part | Runs on | What it does |
 |---|---|---|
 | `n1-remote.apk` | Android phone (Android 9+) | The remote. Every key goes over Bluetooth HID, no Wi-Fi needed |
-| `n1-standby-helper.apk` | N1 box | Accessibility service: the power key toggles a soft standby, other keys are ignored while in standby |
-| `scripts/box.sh` | Computer | Installs the helper and remaps the original remote's power key, over the box's network ADB |
+| `n1-standby-helper.apk` | N1 box | Install it and open it once: it sets itself up. Then it takes the power key in the background, toggles a soft standby and ignores other keys while in standby |
+| `scripts/box.sh` | Computer (optional) | Installs the helper over the box's network ADB, plus maintenance commands |
 | `tools/confirm_pairing.py` | Computer | Taps "Pair" on the box for you when you have no remote |
 | `tools/selftest.py` | Computer | One-command check of the box side: key mapping, held keys, TV key, standby, wake |
 
@@ -48,17 +48,22 @@ Download `n1-remote.apk` and `n1-standby-helper.apk` from Releases, or build the
 
 ### 2. Install the standby helper on the box
 
-Your computer needs `adb` (Android platform-tools).
+**Install it and open it once; that's the whole setup.** Either way works:
 
-```bash
-scripts/box.sh <box-ip> install-helper
-```
+- **No computer**: copy `n1-standby-helper.apk` to a USB stick, install it with the box's file manager, then open "N1 standby helper" from the box's home screen. You need something to drive the box first: the original remote, a USB mouse, or an already paired phone.
+- **With a computer** (needs `adb`): this installs the helper and opens it for you:
 
-This does three things:
+  ```bash
+  scripts/box.sh <box-ip> install-helper
+  ```
 
-- installs the helper;
-- enables its accessibility service;
-- changes the box's `power_key_definition` from 1 (shut down) to 0 (do nothing), so a native power key from any remote can no longer shut the box down for good.
+The first time it opens, the helper does three things through the box's own root ADB and shows each with ✔ / ✘:
+
+- enables its accessibility service, which receives the remote's power key;
+- changes the box's `power_key_definition` from 1 (shut down) to 0 (do nothing), so a native power key from any remote can no longer shut the box down for good;
+- maps the original Phicomm remote's power key to standby (the file is backed up first; one button on the screen restores it).
+
+After every boot and every helper update it checks again and repairs the setup if something was reset (for example the accessibility service turned off). A "Restore and uninstall" button puts the box back to factory settings.
 
 ### 3. Pair the phone
 
@@ -85,7 +90,7 @@ This does three things:
 
 ## The original Phicomm remote
 
-The original remote (device ID `7045:1820`) sends `KEY_POWER` for its power key. Android handles that key before any app sees it, so the helper never gets it. This command maps it to the TV key in the remote's key layout, which makes it send the same key as the phone. It backs the file up first:
+The original remote (device ID `7045:1820`) sends `KEY_POWER` for its power key. Android handles that key before any app sees it, so the helper never gets it. The first time the helper opens, it maps that key to the TV key in the remote's key layout, which makes it send the same key as the phone; the helper's screen can switch it back any time. From a computer, these two commands do the same, also backing the file up first:
 
 ```bash
 scripts/box.sh <box-ip> patch-remote

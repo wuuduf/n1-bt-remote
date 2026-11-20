@@ -7,7 +7,6 @@ import android.util.Log;
 import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
 
-import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -65,6 +64,9 @@ public final class StandbyService extends AccessibilityService {
     private static final String TOGGLE = "if [ -e " + MARK + " ]; then " + WAKE + "; else " + SLEEP + "; fi";
     private static final String QUERY = "[ -e " + MARK + " ] && echo standby || echo awake";
 
+    /** True while the system has this accessibility service bound (shown on the setup screen). */
+    static volatile boolean running;
+
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
     private boolean standby;
@@ -74,6 +76,7 @@ public final class StandbyService extends AccessibilityService {
 
     @Override
     protected void onServiceConnected() {
+        running = true;
         io.execute(() -> {
             String out = sh(QUERY);
             main.post(() -> {
@@ -116,7 +119,6 @@ public final class StandbyService extends AccessibilityService {
         });
     }
 
-    /** adbd serves one TCP client at a time, so retry if something else holds it briefly. */
     /** Turns only the TV on or off over HDMI-CEC; the box itself stays as it is. */
     private void toggleTv() {
         busy = true;
@@ -133,19 +135,7 @@ public final class StandbyService extends AccessibilityService {
     }
 
     private static String sh(String command) {
-        for (int attempt = 1; attempt <= 3; attempt++) {
-            try {
-                return BoxShell.run("127.0.0.1", command, 3000);
-            } catch (IOException e) {
-                Log.w(TAG, "local adb attempt " + attempt + " failed: " + e);
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException ie) {
-                    return null;
-                }
-            }
-        }
-        return null;
+        return Setup.run(command);
     }
 
     @Override
@@ -158,6 +148,7 @@ public final class StandbyService extends AccessibilityService {
 
     @Override
     public void onDestroy() {
+        running = false;
         io.shutdownNow();
         super.onDestroy();
     }

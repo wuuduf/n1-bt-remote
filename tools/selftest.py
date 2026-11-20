@@ -98,7 +98,7 @@ def main():
     code = re.search(r'versionCode=(\d+)', pre)
     if not check(code is not None and int(code.group(1)) >= 3 and SVC in pre,
                  'standby helper 1.2+ installed and enabled',
-                 'run scripts/box.sh <ip> install-helper' if not code else f'versionCode {code.group(1)}'):
+                 'install the helper and open it once on the box (or scripts/box.sh <ip> install-helper)' if not code else f'versionCode {code.group(1)}'):
         return 1
     if not check('state=awake' in pre, 'box is awake before the test'):
         return 1

@@ -30,9 +30,15 @@ final class BoxShell {
         }
     }
 
-    static String run(String host, String command, int timeoutMs) throws IOException {
+    /**
+     * @param timeoutMs    connect + handshake; short, so a busy adbd (it serves one client at
+     *                     a time and leaves the others unanswered) is noticed quickly
+     * @param runTimeoutMs how long the command may run; `settings` alone takes about a second
+     */
+    static String run(String host, String command, int timeoutMs, int runTimeoutMs) throws IOException {
         try (Socket s = open(host, timeoutMs)) {
             handshake(s);
+            s.setSoTimeout(runTimeoutMs);
             OutputStream out = s.getOutputStream();
             DataInputStream in = new DataInputStream(s.getInputStream());
             send(out, OPEN, 1, 0, ("shell:" + command + "\0").getBytes(StandardCharsets.UTF_8));

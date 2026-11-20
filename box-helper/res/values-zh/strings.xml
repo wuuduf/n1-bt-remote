@@ -2,4 +2,34 @@
 <resources>
     <string name="app_name">N1 待机助手</string>
     <string name="service_desc">接收手机蓝牙遥控器的电源键和 TV 键，让盒子进入或退出待机（关画面、关 HDMI、CEC 关电视）。</string>
+    <string name="subtitle">为 W 大固件补上遥控待机与唤醒。打开这个界面就会自动完成设置。</string>
+    <string name="row_adb">本机 root ADB</string>
+    <string name="adb_ok">可用（固件 %1$s）</string>
+    <string name="adb_bad">连不上：网络 ADB 没开，或者有电脑正连着盒子的 ADB</string>
+    <string name="row_service">电源键服务（无障碍）</string>
+    <string name="service_ok">运行中</string>
+    <string name="service_starting">已启用，正在启动…稍后再按「重新设置」</string>
+    <string name="service_bad">未启用</string>
+    <string name="row_power">原生电源键不再关机</string>
+    <string name="power_ok">已设置</string>
+    <string name="power_bad">未设置：按电源键会真关机</string>
+    <string name="row_remote">原装斐讯遥控器的电源键</string>
+    <string name="remote_ok">已改为待机</string>
+    <string name="remote_off">保持原样（会关机）</string>
+    <string name="remote_none">这台盒子上没有这个遥控器的配置</string>
+    <string name="unknown">未知</string>
+    <string name="row_state">盒子状态</string>
+    <string name="state_awake">正常运行</string>
+    <string name="state_standby">待机中</string>
+    <string name="working">正在设置…</string>
+    <string name="summary_ok">一切就绪。用手机 App 或原装遥控器的电源键就能待机 / 唤醒。</string>
+    <string name="summary_bad">还有项目没完成，见上面的说明。</string>
+    <string name="btn_setup">重新设置</string>
+    <string name="btn_remote_patch">原装遥控器：改为待机</string>
+    <string name="btn_remote_restore">原装遥控器：改回原样</string>
+    <string name="btn_remove">还原并卸载</string>
+    <string name="remove_title">还原并卸载？</string>
+    <string name="remove_message">这会关闭助手，把电源键改回「关机」，还原原装遥控器的配置，然后卸载助手。</string>
+    <string name="remove_confirm">还原并卸载</string>
+    <string name="removing">正在还原并卸载…</string>
 </resources>

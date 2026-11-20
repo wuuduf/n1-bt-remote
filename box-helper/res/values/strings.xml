@@ -2,4 +2,34 @@
 <resources>
     <string name="app_name">N1 standby helper</string>
     <string name="service_desc">Takes the power and TV keys from the phone\'s Bluetooth remote and puts the box into or out of standby (screen and HDMI off, TV asleep over CEC).</string>
+    <string name="subtitle">Remote standby and wake for webpad\'s N1 firmware. Opening this screen sets everything up.</string>
+    <string name="row_adb">Local root ADB</string>
+    <string name="adb_ok">Available (firmware %1$s)</string>
+    <string name="adb_bad">Unreachable: network ADB is off, or a computer is holding the box\'s ADB right now</string>
+    <string name="row_service">Power key service (accessibility)</string>
+    <string name="service_ok">Running</string>
+    <string name="service_starting">Enabled, starting… press Set up again in a moment</string>
+    <string name="service_bad">Not enabled</string>
+    <string name="row_power">Native power key no longer shuts down</string>
+    <string name="power_ok">Done</string>
+    <string name="power_bad">Not set: the power key would really shut the box down</string>
+    <string name="row_remote">Original Phicomm remote power key</string>
+    <string name="remote_ok">Mapped to standby</string>
+    <string name="remote_off">Left as is (shuts down)</string>
+    <string name="remote_none">No layout for that remote on this box</string>
+    <string name="unknown">Unknown</string>
+    <string name="row_state">Box state</string>
+    <string name="state_awake">Awake</string>
+    <string name="state_standby">In standby</string>
+    <string name="working">Setting up…</string>
+    <string name="summary_ok">All set. The power key on the phone app or the original remote now toggles standby.</string>
+    <string name="summary_bad">Something is not done yet, see above.</string>
+    <string name="btn_setup">Set up again</string>
+    <string name="btn_remote_patch">Remote: map to standby</string>
+    <string name="btn_remote_restore">Remote: restore</string>
+    <string name="btn_remove">Restore and uninstall</string>
+    <string name="remove_title">Restore and uninstall?</string>
+    <string name="remove_message">This turns the helper off, sets the power key back to shutting down, restores the original remote layout and uninstalls the helper.</string>
+    <string name="remove_confirm">Restore and uninstall</string>
+    <string name="removing">Restoring and uninstalling…</string>
 </resources>
