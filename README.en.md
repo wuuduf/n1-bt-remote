@@ -1,6 +1,8 @@
 # N1 Bluetooth Remote
 
-Turn an Android phone into a Bluetooth remote for the **Phicomm N1** TV box, power on/off included. The box firmware has Android sleep removed, so a small helper on the box adds standby and wake. The original Phicomm Bluetooth remote can use the same power handling.
+**A remote and power on/off solution built for the Phicomm N1 running webpad's firmware ("W大固件").**
+
+webpad's firmware keeps the system framework of Phicomm's official V2.32, and V2.32 removed Android sleep: the power key really shuts the box down, and only unplugging it brings it back. This project turns an Android phone into a Bluetooth remote for the N1 and adds a small helper on the box that brings back standby and wake from the remote. The original Phicomm Bluetooth remote can use the same power handling.
 
 [中文](README.md) | **English**
 
@@ -16,13 +18,27 @@ Turn an Android phone into a Bluetooth remote for the **Phicomm N1** TV box, pow
 
 The app follows the phone's system language: Chinese on Chinese phones, English everywhere else.
 
-## Tested with
+## Firmware
 
-- Box: Phicomm N1, firmware `N1_A0_V2.32_A00_0904_NS` (Android 7.1.2, kernel 3.14)
-- Phone: Xiaomi 13 Ultra (Android 13)
-- Requirement: the box's network ADB (port 5555) is on. On the test box it was on out of the factory, running as root with no authorization. Check with `python3 tools/adb_tcp.py <box-ip> --probe`: an answer like `device::ro.product.name=p230;...` means it is on.
+| | |
+|---|---|
+| Firmware | webpad's mod v2.2, file `N1_mod_by_webpad_v2.2_20180920.img` |
+| Image SHA-256 | `6adffe7f9085ddd5411930d7fb1829f2b06c281255dfcf9b73822884be208863` |
+| Based on | Phicomm official V2.32: `N1_A0_V2.32_A00_0904_NS`, built 2018-09-04, Android 7.1.2, kernel 3.14 |
+| Test phone | Xiaomi 13 Ultra (Android 13) |
 
-Other firmware (for example third-party builds based on v2.19) handles the power key differently and was not tested.
+Check the version on your box (needs network ADB, see below):
+
+```bash
+python3 tools/adb_tcp.py <box-ip> 'getprop ro.build.display.id'
+```
+
+It should print `N1_A0_V2.32_A00_0904_NS`.
+
+- **Why "built for webpad's firmware"**: the power part targets exactly the V2.32 problem (sleep removed, no way to wake from shutdown), and relies on this firmware's details: its power-key setting, Amlogic's HDMI and CEC interfaces, and network ADB running as root. See [docs/findings.md](docs/findings.md) (Chinese).
+- **Phicomm's stock V2.32**: its system framework is file-for-file the same as webpad's v2.2, so it should work too, but it was not tested separately.
+- **Firmware based on v2.19** (Rush's slim build, for example) reportedly keeps native sleep and doesn't need the power part. Not verified. The phone remote itself is standard Bluetooth HID and should work there.
+- **Requirement**: the box's network ADB (port 5555) is on. On this box with webpad's firmware it is on from boot, running as root with no authorization. Check with `python3 tools/adb_tcp.py <box-ip> --probe`: an answer like `device::ro.product.name=p230;...` means it is on.
 
 ## Quick start
 
@@ -85,9 +101,9 @@ Compatible remotes may use another device ID. After pairing, read its `vendor` a
 
 ## Why a "soft" standby
 
-This N1 firmware cannot really sleep, and cannot be powered on remotely. Details in [docs/findings.md](docs/findings.md) (Chinese):
+webpad's firmware (based on official V2.32) cannot really sleep, and cannot be powered on remotely. Details in [docs/findings.md](docs/findings.md) (Chinese):
 
-- Phicomm removed Android sleep: `PowerManagerService.goToSleepNoUpdateLocked()` just returns false. That is why the power key can only be set to "shut down".
+- Phicomm removed Android sleep in official V2.32: `PowerManagerService.goToSleepNoUpdateLocked()` just returns false. webpad's firmware leaves that part untouched, which is why the power key can only be set to "shut down".
 - After a real shutdown nothing can wake the box: the N1 has no IR receiver and Bluetooth loses power too. Only unplugging it helps.
 - So the helper keeps the box running and only turns off the picture, the HDMI signal and the TV. Bluetooth stays connected, so it can always wake.
 

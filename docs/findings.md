@@ -1,6 +1,15 @@
 # 技术调查记录
 
-这里记录做这个项目时，在斐讯 N1 上查到的东西。测试机的固件是 `N1_A0_V2.32_A00_0904_NS`（Android 7.1.2，内核 3.14.29，arm64），时间是 2026 年 11 月。下面写的是这台机器上实际看到的情况，别的固件版本可能不一样。
+这里记录做这个项目时，在斐讯 N1 上查到的东西。测试机装的是 W 大（webpad）修改版 v2.2 固件，底包是斐讯官方 `N1_A0_V2.32_A00_0904_NS`（Android 7.1.2，内核 3.14.29，arm64），时间是 2026 年 11 月。下面写的是这台机器上实际看到的情况，别的固件版本可能不一样。
+
+## 0. 固件来源
+
+镜像文件是 `N1_mod_by_webpad_v2.2_20180920.img`，SHA-256 为 `6adffe7f9085ddd5411930d7fb1829f2b06c281255dfcf9b73822884be208863`。它是 Amlogic USB Burning Tool 的 v2 镜像，一共 21 个条目，其中 system 分区是 Android sparse 格式的 ext4。
+
+- **测试机装的就是这个镜像**：解出 system 分区后，和盒子上的同名文件比对，`build.prop`、`framework/oat/arm64/services.odex`、`services.jar`、`framework.jar`、`usr/keylayout/Generic.kl`、`etc/remote.conf` 的 MD5 全部相同；`/system/app`（31 个）和 `/system/priv-app`（29 个）的列表也完全一致。boot 分区的 ramdisk 是加密的（开头是 `5a07b210…`），没有比对。
+- **底包是官方 V2.32，不是 v2.19**：`build.prop` 里写的是 `ro.build.display.id=N1_A0_V2.32_A00_0904_NS`、`ro.build.date=Tue Sep 4 16:24:36 CST 2018`、`ro.build.user=jenkins`、`ro.build.host=slave2`，指纹是 `Phicomm/p230/p230:7.1.2/NHG47L/20180904:user/dev-keys`。
+- **去掉待机的是斐讯官方，不是 W 大**：`services.odex` 的 OAT 头里记录了 dex2oat 的命令行，里面是 `--dex-file=out/target/common/obj/JAVA_LIBRARIES/services_intermediates/javalib.jar`、`--boot-image=out/target/product/p230/...` 这种路径。只有在完整的 AOSP 源码编译环境里才会产生它们。所以这个文件就是斐讯官方编译出来的原件，W 大的修改没有动到它。下面第 2 节反编译出的「休眠被删」，因此是官方 V2.32 自带的。
+- 斐讯没有公开过固件源码。这个改动最初来自斐讯自己，还是来自 Amlogic 提供的开发套件，现在无法区分。
 
 ## 1. 网络 ADB
 
