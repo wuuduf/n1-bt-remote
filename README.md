@@ -183,6 +183,18 @@ SDK 路径用 `ANDROID_HOME` 指定，默认是 Homebrew 的 `android-commandlin
 - `KEYSTORE_B64`：`base64 -i n1remote.keystore` 的输出；
 - `KS_PASS`：密钥密码。
 
+**发版**：配好这两个 Secret 后，推送一个 `v*` 标签，CI 就会自动编译、签名，并发布 Release。Release 的说明文字取自标签的附注信息，CI 会在后面附上 SHA-256 校验值和这次编译的链接：
+
+```bash
+git tag -a v2.3.1 -F release-notes.md
+```
+
+```bash
+git push origin v2.3.1
+```
+
+为防止误发，打了标签但没配正式密钥时，编译会直接失败，不会用临时密钥发出无法覆盖安装的包。
+
 ## 一键自检
 
 装好待机助手后，可以用一条命令检查盒子端是否一切正常。只需要 Python 3，不需要装 adb：

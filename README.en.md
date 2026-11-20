@@ -183,6 +183,18 @@ By default CI signs with a throwaway key. Those APKs are fine for testing but **
 - `KEYSTORE_B64`: the output of `base64 -i n1remote.keystore`;
 - `KS_PASS`: the keystore password.
 
+**Releasing**: with those two secrets set, push a `v*` tag and CI builds, signs and publishes the release. The release notes are the tag's annotation, followed by the SHA-256 checksums and a link to the build:
+
+```bash
+git tag -a v2.3.1 -F release-notes.md
+```
+
+```bash
+git push origin v2.3.1
+```
+
+As a guard, a tag build without the release key fails instead of publishing APKs signed with a throwaway key that wouldn't install over earlier releases.
+
 ## Self-test
 
 With the helper installed, one command checks the whole box side. Only Python 3 is needed, no adb:
