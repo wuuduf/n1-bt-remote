@@ -13,9 +13,9 @@
     <string name="row_power">Native power key no longer shuts down</string>
     <string name="power_ok">Done</string>
     <string name="power_bad">Not set: the power key would really shut the box down</string>
-    <string name="row_remote">Remote keys (Phicomm original, Xiaomi Bluetooth)</string>
-    <string name="remote_ok">Power toggles standby, voice plays / pauses, Xiaomi Home goes home</string>
-    <string name="remote_off">Left as is (Phicomm power shuts down, Xiaomi power and Home do nothing)</string>
+    <string name="row_remote">Remote keys (Phicomm original, Xiaomi and other Bluetooth remotes)</string>
+    <string name="remote_ok">Power keys toggle standby, voice plays / pauses, Xiaomi Home goes home</string>
+    <string name="remote_off">Left as is (Phicomm power shuts down, power on other remotes does nothing)</string>
     <string name="remote_none">No layout for that remote on this box</string>
     <string name="unknown">Unknown</string>
     <string name="row_state">Box state</string>

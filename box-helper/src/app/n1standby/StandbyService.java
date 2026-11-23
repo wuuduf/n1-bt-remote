@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
 
@@ -28,6 +29,8 @@ public final class StandbyService extends AccessibilityService {
     static final int TOGGLE_KEY = KeyEvent.KEYCODE_TV;
     /** Virtual remote that tools/selftest.py registers; its keys get logged for the test. */
     static final String SELFTEST_DEVICE = "N1 SelfTest";
+    /** HDMI-CEC keys from the TV (Amlogic driver). Its power key is ignored, see onKeyEvent. */
+    static final String CEC_DEVICE = "cec_input";
 
     /** What the phone remote's TV button sends (HID Consumer 0x8D, KEY_PROGRAM). */
     static final int TV_POWER_KEY = KeyEvent.KEYCODE_GUIDE;
@@ -109,6 +112,15 @@ public final class StandbyService extends AccessibilityService {
                     + " repeat=" + e.getRepeatCount() + " standby=" + standby);
         }
         if (e.getKeyCode() == TOGGLE_KEY) {
+            // cec_input uses Generic.kl too, where power is mapped to TV, and the CEC driver
+            // sends that key when the TV goes to standby (fun_cfg "auto power off"). Toggling on
+            // it could wake a box that was just put to sleep, or bounce between the two, so
+            // power from the TV over HDMI-CEC is dropped, as it was before the remap.
+            InputDevice d = e.getDevice();
+            if (d != null && CEC_DEVICE.equals(d.getName())) {
+                if (e.getAction() == KeyEvent.ACTION_UP) Log.i(TAG, "power key from " + CEC_DEVICE + " ignored");
+                return true;
+            }
             if (e.getAction() == KeyEvent.ACTION_UP && !busy) toggle();
             return true;
         }

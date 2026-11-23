@@ -9,8 +9,9 @@ paired over Bluetooth takes) and checks:
   - a held key repeating on the box
   - the TV key reaching the standby helper
   - standby: CPU capped at 500 MHz, other keys swallowed; then wake and CPU restored
-  - with --phicomm: the remapped remote layouts: the Phicomm remote's power key and the
-    Xiaomi Bluetooth voice remote's power key both toggle standby
+  - with --phicomm: the remapped remote layouts: the power key of the Phicomm remote, of a
+    remote that uses Generic.kl and of the Xiaomi Bluetooth voice remote toggles standby, while
+    power from HDMI-CEC (cec_input) is ignored
     and its voice key into play / pause
 
 The box screen moves around while it runs (about a minute) and ends on the home screen.
@@ -63,9 +64,9 @@ def check(ok, what, detail=''):
     return ok
 
 
-def launch(host, seq, env=''):
+def launch(host, seq, env='', name=NAME):
     """Starts UhidTest detached from the adb session so the slot is free for the helper."""
-    shell(host, f'logcat -c; rm -f {LOG}; setsid sh -c "{env} UHID_NAME=\'{NAME}\' '
+    shell(host, f'logcat -c; rm -f {LOG}; setsid sh -c "{env} UHID_NAME=\'{name}\' '
                 f'CLASSPATH={DEX} app_process /system/bin n1.tools.UhidTest {seq} > {LOG} 2>&1" '
                 f'< /dev/null > /dev/null 2>&1 & sleep 1')
 
@@ -173,6 +174,21 @@ def main():
             log = helper_log(host)
             check(any('toggled -> standby' in l for l in log) and any('toggled -> awake' in l for l in log),
                   'its power key puts the box into standby and wakes it')
+
+        print('Generic.kl (remotes without a layout of their own)')
+        gen = shell(host, "grep '^key 116 ' /system/usr/keylayout/Generic.kl")
+        if check(re.search(r'key 116\s+TV', gen) is not None, 'Generic.kl power -> TV', ' '.join(gen.split()) or 'missing'):
+            launch(host, '3000 0 w6000 0 w4000')  # default ID: no layout of its own, so Generic.kl
+            wait_done(host, 18)
+            log = helper_log(host)
+            check(any('toggled -> standby' in l for l in log) and any('toggled -> awake' in l for l in log),
+                  'a remote using Generic.kl: power puts the box into standby and wakes it')
+            # The TV sends KEY_POWER over HDMI-CEC when it goes to standby; that must not toggle.
+            launch(host, '3000 0 w4000', name='cec_input')
+            wait_done(host, 10)
+            log = helper_log(host)
+            check(any('from cec_input ignored' in l for l in log) and not any('toggled' in l for l in log),
+                  'power from HDMI-CEC (cec_input) is ignored')
 
         print('Xiaomi Bluetooth voice remote layout')
         xm = shell(host, f"grep -E '^key (116|102|63) ' {XM} 2>/dev/null")

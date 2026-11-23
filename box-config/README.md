@@ -16,6 +16,19 @@
 +key 116   TV
 ```
 
+## 其他蓝牙遥控器：`Generic.kl`
+
+没有专用布局的设备都用 `Generic.kl`。N1 上电源键（116）映射成 POWER 后按了没反应，所以把这一行改成 TV，交给待机助手：
+
+```diff
+-key 116   POWER
++key 116   TV
+```
+
+改之前把原版备份到盒子上的 `/data/local/tmp/btbak/Generic.kl.orig`。新文件先写到同目录的临时文件里，确认行数没变、只有这一行变了，才用 `mv` 一步替换。改回原样时从备份整份恢复。
+
+`cec_input`（电视经 HDMI-CEC 发来的按键）也用 `Generic.kl`，它唯一的键就是 KEY_POWER。盒子的 CEC 配置 `fun_cfg=0x2f` 里打开了「电视关机时盒子跟着关」，电视待机时它会发这个键。待机助手会忽略来自 `cec_input` 的 TV 键，免得把盒子来回切换。
+
 ## 小米蓝牙语音遥控器（`2717:32b8`）
 
 固件里没有它专用的布局，所以默认用 `Generic.kl`。这个遥控器发的是 HID 键盘类的用法码，用 `Generic.kl` 时有三个键不对：

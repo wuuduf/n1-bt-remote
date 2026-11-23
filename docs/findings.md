@@ -111,6 +111,7 @@
   - 用 `Generic.kl` 时，主页键变成 MOVE_HOME（键盘上把光标移到行首），电源键因为 `power_key_definition=0` 没反应，语音键只是 F5。麦克风数据走 `/dev/hidraw*`，用的是小米自己的协议，`dumpsys input` 里 HasMic=false。
   - 助手 1.5 起，从 `Generic.kl` 生成 `Vendor_2717_Product_32b8.kl`，只改 116→TV、102→HOME、63→MEDIA_PLAY_PAUSE。自检用 uhid 以 `2717:32b8` 创建虚拟设备，确认 Android 选用了这份布局，并且电源键能进入待机再唤醒。
   - 按键布局只在设备连接时读取。关掉盒子蓝牙再打开以后，这个 BLE 遥控器要按一下键才会重新连上。
+- **`Generic.kl` 的电源键**（助手 1.5 起改成 TV）：所有没有专用布局的遥控器和键盘都用它。`cec_input`（Amlogic 的 HDMI-CEC 输入设备）也用它，`getevent -lp` 显示它只能发 KEY_POWER。`/sys/class/cec/fun_cfg` 是 `0x2f`，打开了「电视关机时盒子跟着关」，所以电视待机时 CEC 驱动会通过 `cec_input` 发 KEY_POWER。改成 TV 以后，这会变成「切换待机」：盒子本来就在待机的话，反而会被唤醒，还可能和电视来回切。所以 `StandbyService` 按设备名忽略来自 `cec_input` 的 TV 键。自检用 uhid 创建一个也叫 `cec_input` 的虚拟设备来验证这一点。
 - 助手启动时，用本机 adb 查询现在是不是待机。安装刚结束时 adbd 常常还被安装方占着，查询会失败；1.4 及之前失败了就当作「醒着」，待机中按方向键会作用到黑屏后面的桌面。1.5 起查询失败会每 10 秒重试一次，最多 5 次。
 
 - **扫描找盒子**（App 2.5.0 起的「查找」）：盒子只有在手机版设置的蓝牙页面打开时才能被搜到（`android.settings.BLUETOOTH_SETTINGS` 对应 `com.android.settings/.Settings$BluetoothSettingsActivity`）。打开后，手机的经典蓝牙扫描能扫到它，名字是 `p230`（N1 的型号），类型是经典蓝牙（`DEVICE_TYPE_CLASSIC`）。实测一次扫描大约 12 秒，周围扫到约 80 个设备，其中约 75 个是只支持 BLE 的设备（大多没有名字），列表里直接过滤掉了。扫描权限用 `BLUETOOTH_SCAN` 加 `neverForLocation`，Android 12 起不需要定位权限。

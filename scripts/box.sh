@@ -6,9 +6,12 @@
 #                                              "N1 standby helper" on the box)
 #   scripts/box.sh <box-ip> patch-remote       remap remote keys (the helper's screen does this too):
 #                                              Phicomm remote power -> TV, voice -> play/pause (backs
-#                                              up first); adds a layout for the Xiaomi Bluetooth voice
-#                                              remote: power -> TV, Home -> HOME, voice -> play/pause
-#   scripts/box.sh <box-ip> unpatch-remote     restore the Phicomm layout, remove our Xiaomi layout
+#                                              up first); Generic.kl power -> TV, so other Bluetooth
+#                                              remotes toggle standby too (backed up first); adds a
+#                                              layout for the Xiaomi Bluetooth voice remote:
+#                                              power -> TV, Home -> HOME, voice -> play/pause
+#   scripts/box.sh <box-ip> unpatch-remote     restore the Phicomm layout and Generic.kl, remove our
+#                                              Xiaomi layout
 #   scripts/box.sh <box-ip> status             helper, power key setting, standby state
 #   scripts/box.sh <box-ip> update-descriptor <phone-mac>  after an app update that adds keys:
 #                                              swap the descriptor the box stored, no re-pairing
@@ -68,6 +71,14 @@ patch-remote)
            rm -f $BAK/patched.kl
          elif ! grep -q '^key 116 *TV\$' $KL 2>/dev/null; then echo 'phicomm: unexpected layout, not touching it'; fi
          echo \"phicomm: \$(grep -E '^key (116|194) ' $KL 2>/dev/null | tr -s ' ' | tr '\\n' ' ')\"
+         if grep -q '^key 116 *POWER\$' $GEN; then
+           [ -f $BAK/Generic.kl.orig ] || cp $GEN $BAK/Generic.kl.orig
+           sed 's/^key 116\\( *\\)POWER\$/key 116\\1TV/' $GEN > $GEN.n1tmp
+           if [ \"\$(wc -l < $GEN.n1tmp)\" = \"\$(wc -l < $GEN)\" ] && [ \"\$(grep -c '^key 116 *TV\$' $GEN.n1tmp)\" = 1 ]; then
+             chmod 644 $GEN.n1tmp && mv $GEN.n1tmp $GEN && sync
+           else rm -f $GEN.n1tmp; echo 'generic: unexpected result, not changed'; fi
+         fi
+         echo \"generic: \$(grep '^key 116 ' $GEN | tr -s ' ')\"
          if [ -e $XM ]; then echo 'xiaomi: layout already there'
          elif grep -q '^key 102 *MOVE_HOME\$' $GEN; then
            { echo '# Xiaomi Bluetooth voice remote (2717:32b8) on the Phicomm N1, made from Generic.kl by scripts/box.sh.'
@@ -85,6 +96,12 @@ unpatch-remote)
          if [ -f $BAK/Vendor_7045_Product_1820.kl.orig ]; then cat $BAK/Vendor_7045_Product_1820.kl.orig > $KL
          else sed -e 's/^key 116\\( *\\)TV\$/key 116\\1POWER/' -e 's/^key 194\\( *\\)MEDIA_PLAY_PAUSE\$/key 194\\1VOICE_ASSIST/' $KL > /data/local/tmp/kl.tmp && cat /data/local/tmp/kl.tmp > $KL && rm /data/local/tmp/kl.tmp; fi
          grep -q 'made from Generic.kl' $XM 2>/dev/null && rm -f $XM && echo 'xiaomi: our layout removed'
+         if grep -q '^key 116 *TV\$' $GEN; then
+           if [ -f $BAK/Generic.kl.orig ]; then cp $BAK/Generic.kl.orig $GEN.n1tmp
+           else sed 's/^key 116\\( *\\)TV\$/key 116\\1POWER/' $GEN > $GEN.n1tmp; fi
+           grep -q '^key 116 *POWER\$' $GEN.n1tmp && chmod 644 $GEN.n1tmp && mv $GEN.n1tmp $GEN && echo 'generic: power restored'
+           rm -f $GEN.n1tmp
+         fi
          sync; grep -E '^key (116|194) ' $KL"
     ;;
 status)
@@ -93,6 +110,7 @@ status)
          echo \"accessibility:      \$(settings get secure enabled_accessibility_services)\"
          echo \"power_key_definition: \$(settings get system power_key_definition)  (0 none, 1 shutdown, 2 reboot)\"
          echo \"phicomm remote:     \$(grep -E '^key (116|194) ' $KL | tr -s ' ' | tr '\\n' ' ')\"
+         echo \"generic layout:     \$(grep '^key 116 ' $GEN | tr -s ' ')  (other remotes)\"
          [ -e $XM ] && echo \"xiaomi remote:      \$(grep -E '^key (116|102|63) ' $XM | tr -s ' ' | tr '\\n' ' ')\" || echo 'xiaomi remote:      no layout of its own (Generic.kl)'
          [ -e /dev/.n1remote_standby ] && echo 'state:              standby' || echo 'state:              awake'
          logcat -d | grep N1Standby | tail -3"

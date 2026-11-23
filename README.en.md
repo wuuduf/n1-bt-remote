@@ -91,7 +91,7 @@ After every boot and every helper update it checks again and repairs the setup i
 - **Touchpad**: the Touchpad button between the two power keys swaps the D-pad for a swipe area. **One swipe moves one item**, however long or fast. **Swipe and keep your finger resting** to keep moving, like holding a D-pad key; lift to stop. Movement starts about 0.75 s after your finger stops, and the pad turns blue to show it. A tap is OK. Tap "D-pad" to switch back; the app remembers your choice.
 - **Holding a key**: hold a D-pad or volume key and the box repeats it.
 
-## The original Phicomm remote, or a Xiaomi Bluetooth remote
+## The original Phicomm remote, or another Bluetooth remote
 
 The original remote (device ID `7045:1820`) sends `KEY_POWER` for its power key. Android handles that key before any app sees it, so the helper never gets it. The first time the helper opens, it maps that key to the TV key in the remote's key layout, which makes it send the same key as the phone. It also turns the remote's voice key (which does nothing, the box has no voice app) into play / pause, like the orange key in the phone app (helper 1.4 and later). The helper's screen can switch both back any time. From a computer, these two commands do the same, also backing the file up first:
 
@@ -106,6 +106,10 @@ scripts/box.sh <box-ip> unpatch-remote
 The second command restores it. The exact lines are in [box-config/](box-config/).
 
 **Xiaomi Bluetooth voice remote** (device ID `2717:32b8`, helper 1.5 and later): the firmware has no layout of its own for it, and with `Generic.kl` its power key does nothing, its Home key does not go home (it arrives as the keyboard Home key) and its voice key sends F5. When the helper remaps the remotes it also adds a layout for this one: power toggles standby, Home goes home, voice plays / pauses, everything else unchanged. Its microphone uses Xiaomi's own protocol and does not work on this box. A layout is read when the remote connects, so reconnect the remote afterwards (turn the box's Bluetooth off and on, then press a key on the remote).
+
+**Other Bluetooth remotes** (helper 1.5 and later): a remote without a layout of its own uses `Generic.kl`, where the power key also does nothing on the N1. When the helper remaps the remotes it maps power to the TV key in `Generic.kl` too, so such a remote toggles standby with its power key. The original file is backed up first and comes back whole on restore. A keyboard with a power key will toggle standby as well.
+
+HDMI-CEC power from the TV (the box's `cec_input` device) uses `Generic.kl` as well, and the TV sends it when it goes to standby. So that it can't flip the box back and forth, the helper ignores power from `cec_input`, which does nothing, as before.
 
 Compatible remotes may use another device ID. After pairing, read its `vendor` and `product` from `dumpsys input` and write a `Vendor_XXXX_Product_YYYY.kl`. If `/system/usr/keylayout/` has no file for that ID, put it in `/data/system/devices/keylayout/` and leave the system partition alone.
 

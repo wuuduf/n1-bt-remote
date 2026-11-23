@@ -79,9 +79,38 @@ final class Setup {
             "if grep -q '" + XM_MARK + "' " + XM_KL + " 2>/dev/null; then "
             + "mount -o remount,rw /system 2>/dev/null; rm -f " + XM_KL + "; sync; fi; ";
 
-    /** "Remap the remotes": the Phicomm remote and the Xiaomi remote together. */
-    private static final String PATCH_REMOTE = PATCH_PHICOMM + PATCH_XIAOMI;
-    private static final String UNPATCH_REMOTE = UNPATCH_PHICOMM + UNPATCH_XIAOMI;
+    /**
+     * Every remote without a layout of its own uses Generic.kl, and its power key does nothing
+     * on the N1 (power_key_definition is 0). Mapping power to TV there hands it to us, so any
+     * such Bluetooth remote can toggle standby. cec_input uses Generic.kl as well and sends that
+     * key when the TV goes to standby; StandbyService ignores it from there. Generic.kl matters
+     * to every such device, so the new file is checked (same length, only that line changed)
+     * and moved into place in one step; the original is kept once in BAK.
+     */
+    private static final String GENERIC_TMP = GENERIC_KL + ".n1tmp";
+
+    private static final String PATCH_GENERIC =
+            "if grep -q '^key 116 *POWER$' " + GENERIC_KL + " 2>/dev/null; then "
+            + "mount -o remount,rw /system 2>/dev/null; mkdir -p " + BAK + "; "
+            + "[ -f " + BAK + "/Generic.kl.orig ] || cp " + GENERIC_KL + " " + BAK + "/Generic.kl.orig; "
+            + "sed 's/^key 116\\( *\\)POWER$/key 116\\1TV/' " + GENERIC_KL + " > " + GENERIC_TMP + "; "
+            + "if [ \"$(wc -l < " + GENERIC_TMP + ")\" = \"$(wc -l < " + GENERIC_KL + ")\" ] "
+            + "&& [ \"$(grep -c '^key 116 *TV$' " + GENERIC_TMP + ")\" = 1 ]; then "
+            + "chmod 644 " + GENERIC_TMP + " && mv " + GENERIC_TMP + " " + GENERIC_KL + "; "
+            + "else rm -f " + GENERIC_TMP + "; fi; sync; fi; ";
+
+    private static final String UNPATCH_GENERIC =
+            "if grep -q '^key 116 *TV$' " + GENERIC_KL + " 2>/dev/null; then "
+            + "mount -o remount,rw /system 2>/dev/null; "
+            + "if [ -f " + BAK + "/Generic.kl.orig ]; then cp " + BAK + "/Generic.kl.orig " + GENERIC_TMP + "; "
+            + "else sed 's/^key 116\\( *\\)TV$/key 116\\1POWER/' " + GENERIC_KL + " > " + GENERIC_TMP + "; fi; "
+            + "if grep -q '^key 116 *POWER$' " + GENERIC_TMP + "; then "
+            + "chmod 644 " + GENERIC_TMP + " && mv " + GENERIC_TMP + " " + GENERIC_KL + "; "
+            + "else rm -f " + GENERIC_TMP + "; fi; sync; fi; ";
+
+    /** "Remap the remotes": the Phicomm remote, Generic.kl and the Xiaomi remote. */
+    private static final String PATCH_REMOTE = PATCH_PHICOMM + PATCH_GENERIC + PATCH_XIAOMI;
+    private static final String UNPATCH_REMOTE = UNPATCH_PHICOMM + UNPATCH_XIAOMI + UNPATCH_GENERIC;
 
     /** Back to factory: helper disabled, power key shuts down, remote layouts as they came. */
     private static final String RESTORE =
@@ -98,7 +127,7 @@ final class Setup {
             // this firmware's Generic.kl needs it); POWER = factory or half done; empty = no layout
             + "if [ -f " + KL + " ]; then p=$(grep '^key 116' " + KL + " | tr -s ' ' | cut -d' ' -f3); "
             + "v=$(grep '^key 194' " + KL + " | tr -s ' ' | cut -d' ' -f3); "
-            + "if [ \"$p\" = TV ] && [ \"$v\" != VOICE_ASSIST ] && { [ -e " + XM_KL + " ] "
+            + "if [ \"$p\" = TV ] && [ \"$v\" != VOICE_ASSIST ] && grep -q '^key 116 *TV$' " + GENERIC_KL + " && { [ -e " + XM_KL + " ] "
             + "|| ! grep -q '^key 102 *MOVE_HOME$' " + GENERIC_KL + "; }; then echo kl=TV; else echo kl=${p:+POWER}; fi; "
             + "else echo kl=none; fi; "
             + "[ -e " + MARK + " ] && echo state=standby || echo state=awake; "

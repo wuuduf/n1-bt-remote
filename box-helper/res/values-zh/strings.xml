@@ -13,9 +13,9 @@
     <string name="row_power">原生电源键不再关机</string>
     <string name="power_ok">已设置</string>
     <string name="power_bad">未设置：按电源键会真关机</string>
-    <string name="row_remote">遥控器改键（斐讯原装、小米蓝牙）</string>
-    <string name="remote_ok">电源键改为待机，语音键改为播放/暂停，小米遥控器的主页键能回桌面</string>
-    <string name="remote_off">保持原样（斐讯遥控器电源键会关机，小米遥控器电源和主页键无效）</string>
+    <string name="row_remote">遥控器改键（斐讯原装、小米及其他蓝牙遥控器）</string>
+    <string name="remote_ok">电源键都改为待机，语音键改为播放/暂停，小米遥控器的主页键能回桌面</string>
+    <string name="remote_off">保持原样（斐讯遥控器电源键会关机，其他遥控器的电源键无效）</string>
     <string name="remote_none">这台盒子上没有这个遥控器的配置</string>
     <string name="unknown">未知</string>
     <string name="row_state">盒子状态</string>
