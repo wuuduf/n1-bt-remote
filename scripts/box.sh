@@ -52,31 +52,30 @@ install-helper)
     connect
     sh_ "echo \"accessibility: \$(settings get secure enabled_accessibility_services)\"
          echo \"power_key_definition: \$(settings get system power_key_definition)  (0 = safe)\"
-         echo \"phicomm remote: \$(grep '^key 116' $KL 2>/dev/null || echo 'no layout')\"
+         echo \"phicomm remote: \$(grep -E '^key (116|194) ' $KL 2>/dev/null || echo 'no layout')\"
          logcat -d -s N1Standby:I | tail -2"
     ;;
 patch-remote)
     sh_ "mount -o remount,rw /system 2>/dev/null; mkdir -p $BAK
-         if grep -q '^key 116 *TV\$' $KL; then echo 'already patched'; exit 0; fi
-         grep -q '^key 116 *POWER\$' $KL || { echo 'unexpected layout, not touching it'; exit 1; }
+         grep -q -E '^key (116 *POWER|194 *VOICE_ASSIST)\$' $KL || { grep -q '^key 116 *TV\$' $KL && echo 'already patched' && exit 0; echo 'unexpected layout, not touching it'; exit 1; }
          [ -f $BAK/Vendor_7045_Product_1820.kl.orig ] || cp $KL $BAK/Vendor_7045_Product_1820.kl.orig
-         sed 's/^key 116\\( *\\)POWER\$/key 116\\1TV/' $KL > $BAK/patched.kl
+         sed -e 's/^key 116\\( *\\)POWER\$/key 116\\1TV/' -e 's/^key 194\\( *\\)VOICE_ASSIST\$/key 194\\1MEDIA_PLAY_PAUSE/' $KL > $BAK/patched.kl
          grep -q '^key 116 *TV\$' $BAK/patched.kl && cat $BAK/patched.kl > $KL && sync
-         rm -f $BAK/patched.kl; grep '^key 116' $KL
+         rm -f $BAK/patched.kl; grep -E '^key (116|194) ' $KL
          echo 'patched; re-pair or reconnect the remote for it to take effect'"
     ;;
 unpatch-remote)
     sh_ "mount -o remount,rw /system 2>/dev/null
          if [ -f $BAK/Vendor_7045_Product_1820.kl.orig ]; then cat $BAK/Vendor_7045_Product_1820.kl.orig > $KL
-         else sed 's/^key 116\\( *\\)TV\$/key 116\\1POWER/' $KL > /data/local/tmp/kl.tmp && cat /data/local/tmp/kl.tmp > $KL && rm /data/local/tmp/kl.tmp; fi
-         sync; grep '^key 116' $KL"
+         else sed -e 's/^key 116\\( *\\)TV\$/key 116\\1POWER/' -e 's/^key 194\\( *\\)MEDIA_PLAY_PAUSE\$/key 194\\1VOICE_ASSIST/' $KL > /data/local/tmp/kl.tmp && cat /data/local/tmp/kl.tmp > $KL && rm /data/local/tmp/kl.tmp; fi
+         sync; grep -E '^key (116|194) ' $KL"
     ;;
 status)
     sh_ "echo \"firmware:           \$(getprop ro.build.display.id)\"
          echo \"helper installed:   \$(pm list packages app.n1standby | grep -c n1standby)\"
          echo \"accessibility:      \$(settings get secure enabled_accessibility_services)\"
          echo \"power_key_definition: \$(settings get system power_key_definition)  (0 none, 1 shutdown, 2 reboot)\"
-         echo \"phicomm remote:     \$(grep '^key 116' $KL)\"
+         echo \"phicomm remote:     \$(grep -E '^key (116|194) ' $KL | tr -s ' ' | tr '\\n' ' ')\"
          [ -e /dev/.n1remote_standby ] && echo 'state:              standby' || echo 'state:              awake'
          logcat -d | grep N1Standby | tail -3"
     ;;

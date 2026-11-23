@@ -30,20 +30,26 @@ final class Setup {
             + "settings put secure accessibility_enabled 1; "
             + "settings put system power_key_definition 0; ";
 
-    /** Phicomm remote: map its power key (KEY_POWER) to TV so the helper gets it. */
+    /**
+     * Phicomm remote: map its power key (KEY_POWER, 116) to TV so the helper gets it, and its
+     * voice key (194, VOICE_ASSIST, which nothing on the box handles) to play / pause, like the
+     * phone app. The factory file is kept the first time; the patch is checked before it lands.
+     */
     private static final String PATCH_REMOTE =
-            "if grep -q '^key 116 *POWER$' " + KL + " 2>/dev/null; then "
+            "if grep -q -E '^key (116 *POWER|194 *VOICE_ASSIST)$' " + KL + " 2>/dev/null; then "
             + "mount -o remount,rw /system 2>/dev/null; mkdir -p " + BAK + "; "
             + "[ -f " + BAK + "/Vendor_7045_Product_1820.kl.orig ] || cp " + KL + " " + BAK + "/Vendor_7045_Product_1820.kl.orig; "
-            + "sed 's/^key 116\\( *\\)POWER$/key 116\\1TV/' " + KL + " > " + BAK + "/patched.kl && "
+            + "sed -e 's/^key 116\\( *\\)POWER$/key 116\\1TV/' "
+            + "-e 's/^key 194\\( *\\)VOICE_ASSIST$/key 194\\1MEDIA_PLAY_PAUSE/' " + KL + " > " + BAK + "/patched.kl && "
             + "grep -q '^key 116 *TV$' " + BAK + "/patched.kl && cat " + BAK + "/patched.kl > " + KL + "; "
             + "rm -f " + BAK + "/patched.kl; sync; fi; ";
 
     private static final String UNPATCH_REMOTE =
-            "if grep -q '^key 116 *TV$' " + KL + " 2>/dev/null; then "
+            "if grep -q -E '^key (116 *TV|194 *MEDIA_PLAY_PAUSE)$' " + KL + " 2>/dev/null; then "
             + "mount -o remount,rw /system 2>/dev/null; "
             + "if [ -f " + BAK + "/Vendor_7045_Product_1820.kl.orig ]; then cat " + BAK + "/Vendor_7045_Product_1820.kl.orig > " + KL + "; "
-            + "else sed 's/^key 116\\( *\\)TV$/key 116\\1POWER/' " + KL + " > " + BAK + "/kl.tmp && cat " + BAK + "/kl.tmp > " + KL + "; rm -f " + BAK + "/kl.tmp; fi; "
+            + "else sed -e 's/^key 116\\( *\\)TV$/key 116\\1POWER/' -e 's/^key 194\\( *\\)MEDIA_PLAY_PAUSE$/key 194\\1VOICE_ASSIST/' "
+            + KL + " > " + BAK + "/kl.tmp && cat " + BAK + "/kl.tmp > " + KL + "; rm -f " + BAK + "/kl.tmp; fi; "
             + "sync; fi; ";
 
     /** Back to factory: helper disabled, power key shuts down, Phicomm remote untouched. */
@@ -57,14 +63,18 @@ final class Setup {
     private static final String STATUS =
             "echo acc=$(settings get secure enabled_accessibility_services); "
             + "echo pkd=$(settings get system power_key_definition); "
-            + "if [ -f " + KL + " ]; then echo kl=$(grep '^key 116' " + KL + " | tr -s ' ' | cut -d' ' -f3); else echo kl=none; fi; "
+            // kl=TV only when both keys are remapped; POWER = factory or half done; empty = no such layout
+            + "if [ -f " + KL + " ]; then p=$(grep '^key 116' " + KL + " | tr -s ' ' | cut -d' ' -f3); "
+            + "v=$(grep '^key 194' " + KL + " | tr -s ' ' | cut -d' ' -f3); "
+            + "if [ \"$p\" = TV ] && [ \"$v\" != VOICE_ASSIST ]; then echo kl=TV; else echo kl=${p:+POWER}; fi; "
+            + "else echo kl=none; fi; "
             + "[ -e " + MARK + " ] && echo state=standby || echo state=awake; "
             + "echo fw=$(getprop ro.build.display.id)";
 
     /** What the box looks like right now; adbOk false means none of the rest is known. */
     static final class Status {
         boolean adbOk, accessibility, powerKeySafe, standby;
-        String remote = "none"; // "TV" (patched), "POWER" (original) or "none" (no such layout)
+        String remote = "none"; // "TV" (both keys remapped), "POWER" (not, or only half) or "none" (no such layout)
         String firmware = "";
 
         boolean ready() {

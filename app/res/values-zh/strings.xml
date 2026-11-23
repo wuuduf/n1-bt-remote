@@ -12,7 +12,7 @@
     <string name="cd_power">盒子电源</string>
     <string name="cd_tv">电视电源（HDMI-CEC）</string>
     <string name="cd_back">返回</string>
-    <string name="cd_voice">语音</string>
+    <string name="cd_play_pause">播放/暂停</string>
     <string name="cd_vol_up">音量加</string>
     <string name="cd_home">主页</string>
     <string name="cd_menu">菜单</string>

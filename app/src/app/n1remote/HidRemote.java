@@ -37,7 +37,7 @@ final class HidRemote {
     static final int KEY_DOWN = 4;     // 0x0043 Menu Down    -> KEY_DOWN       -> DPAD_DOWN
     static final int KEY_LEFT = 5;     // 0x0044 Menu Left    -> KEY_LEFT       -> DPAD_LEFT
     static final int KEY_RIGHT = 6;    // 0x0045 Menu Right   -> KEY_RIGHT      -> DPAD_RIGHT
-    static final int KEY_VOICE = 7;    // 0x00CF Voice Cmd    -> KEY_VOICECOMMAND -> VOICE_ASSIST
+    static final int KEY_PLAY_PAUSE = 7; // 0x00CD Play/Pause -> KEY_PLAYPAUSE -> MEDIA_PLAY_PAUSE (was Voice Command 0x00CF, which nothing on the box handles)
     static final int KEY_VOL_UP = 8;   // 0x00E9 Volume Inc   -> KEY_VOLUMEUP   -> VOLUME_UP
     static final int KEY_VOL_DOWN = 9; // 0x00EA Volume Dec   -> KEY_VOLUMEDOWN -> VOLUME_DOWN
     static final int KEY_HOME = 10;    // 0x0223 AC Home      -> KEY_HOMEPAGE   -> HOME
@@ -65,7 +65,7 @@ final class HidRemote {
         0x09, 0x43,                    //   Usage (Menu Down)
         0x09, 0x44,                    //   Usage (Menu Left)
         0x09, 0x45,                    //   Usage (Menu Right)
-        0x09, (byte) 0xCF,             //   Usage (Voice Command)
+        0x09, (byte) 0xCD,             //   Usage (Play/Pause)
         0x09, (byte) 0xE9,             //   Usage (Volume Increment)
         0x09, (byte) 0xEA,             //   Usage (Volume Decrement)
         0x0A, 0x23, 0x02,              //   Usage (AC Home)

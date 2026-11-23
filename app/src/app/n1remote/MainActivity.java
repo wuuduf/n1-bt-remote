@@ -64,7 +64,7 @@ public final class MainActivity extends Activity implements HidRemote.Listener {
 
         bindKey(R.id.btn_power, HidRemote.KEY_STANDBY);
         bindKey(R.id.btn_back, HidRemote.KEY_BACK);
-        bindKey(R.id.btn_voice, HidRemote.KEY_VOICE);
+        bindKey(R.id.btn_play_pause, HidRemote.KEY_PLAY_PAUSE);
         bindKey(R.id.btn_vol_up, HidRemote.KEY_VOL_UP);
         bindKey(R.id.btn_home, HidRemote.KEY_HOME);
         bindKey(R.id.btn_menu, HidRemote.KEY_MENU);

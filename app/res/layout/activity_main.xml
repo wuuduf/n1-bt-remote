@@ -175,14 +175,14 @@
                     android:tint="#FFE6E6EA" />
 
                 <ImageButton
-                    android:id="@+id/btn_voice"
+                    android:id="@+id/btn_play_pause"
                     android:layout_width="60dp"
                     android:layout_height="60dp"
                     android:layout_marginStart="22dp"
                     android:layout_marginEnd="22dp"
                     android:background="@drawable/btn_round"
-                    android:contentDescription="@string/cd_voice"
-                    android:src="@drawable/ic_mic"
+                    android:contentDescription="@string/cd_play_pause"
+                    android:src="@drawable/ic_play_pause"
                     android:tint="#FFF5A623" />
 
                 <ImageButton

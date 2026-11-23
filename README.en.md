@@ -87,12 +87,13 @@ After every boot and every helper update it checks again and repairs the setup i
 
 - **OTT key (red)**: power. One press puts the box in standby: back to the home screen, screen blanked, HDMI signal off, CPU capped at 500 MHz, TV asked to sleep over CEC. Press again to wake.
 - **TV key**: turns only the TV on or off over HDMI-CEC; the box is not affected. The TV must support CEC and have it on.
+- **Play / pause key (orange)**: pauses and resumes video. It is a standard media key: the player gets it first, then the system media controls if the player ignores it. This used to be a voice key, which did nothing because the box has no voice app; 2.6.0 made it play / pause. Coming from an older version, update the key descriptor stored on the box once (next section).
 - **Touchpad**: the Touchpad button between the two power keys swaps the D-pad for a swipe area. **One swipe moves one item**, however long or fast. **Swipe and keep your finger resting** to keep moving, like holding a D-pad key; lift to stop. Movement starts about 0.75 s after your finger stops, and the pad turns blue to show it. A tap is OK. Tap "D-pad" to switch back; the app remembers your choice.
 - **Holding a key**: hold a D-pad or volume key and the box repeats it.
 
 ## The original Phicomm remote
 
-The original remote (device ID `7045:1820`) sends `KEY_POWER` for its power key. Android handles that key before any app sees it, so the helper never gets it. The first time the helper opens, it maps that key to the TV key in the remote's key layout, which makes it send the same key as the phone; the helper's screen can switch it back any time. From a computer, these two commands do the same, also backing the file up first:
+The original remote (device ID `7045:1820`) sends `KEY_POWER` for its power key. Android handles that key before any app sees it, so the helper never gets it. The first time the helper opens, it maps that key to the TV key in the remote's key layout, which makes it send the same key as the phone. It also turns the remote's voice key (which does nothing, the box has no voice app) into play / pause, like the orange key in the phone app (helper 1.4 and later). The helper's screen can switch both back any time. From a computer, these two commands do the same, also backing the file up first:
 
 ```bash
 scripts/box.sh <box-ip> patch-remote
@@ -126,7 +127,7 @@ The helper catches the key as an accessibility service. The actual work (writing
 | Home | 0x223 AC Home | KEY_HOMEPAGE | HOME |
 | Menu | 0x40 Menu | KEY_MENU | MENU |
 | Volume + / − | 0xE9 / 0xEA | KEY_VOLUMEUP/DOWN | VOLUME_UP/DOWN |
-| Voice | 0xCF Voice Command | KEY_VOICECOMMAND | VOICE_ASSIST (no voice app on the box, does nothing) |
+| Play / pause | 0xCD Play/Pause | KEY_PLAYPAUSE | MEDIA_PLAY_PAUSE (since 2.6.0; used to be a voice key that did nothing) |
 | OTT power | 0x89 Media Select TV | KEY_TV | TV → helper toggles standby |
 | TV power | 0x8D Media Select Program Guide | KEY_PROGRAM | GUIDE → helper turns the TV on/off over CEC |
 
@@ -134,7 +135,7 @@ The descriptor is a 14-bit bitmap (plus 2 padding bits, 2 bytes) with no letter 
 
 ## Keys missing after an app update
 
-The box stores the key descriptor it got at pairing time and never reads it again. If a new app version adds keys (2.2.0 added the TV key, for example), the box won't know them. Either:
+The box stores the key descriptor it got at pairing time and never reads it again. If a new app version adds or changes keys (2.2.0 added the TV key, 2.6.0 turned the voice key into play / pause), the box won't know them. Either:
 
 - unpair on both the phone and the box, then pair again; or
 - swap the stored descriptor without re-pairing:

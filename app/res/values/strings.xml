@@ -12,7 +12,7 @@
     <string name="cd_power">Box power</string>
     <string name="cd_tv">TV power (HDMI-CEC)</string>
     <string name="cd_back">Back</string>
-    <string name="cd_voice">Voice</string>
+    <string name="cd_play_pause">Play / pause</string>
     <string name="cd_vol_up">Volume up</string>
     <string name="cd_home">Home</string>
     <string name="cd_menu">Menu</string>

@@ -61,7 +61,7 @@
 
 - 无障碍服务开启 `flagRequestFilterKeyEvents` 后，能在按键派发给应用之前拿到它。**但电源键不行**：它在 `interceptKeyBeforeQueueing` 里被清掉了 `ACTION_PASS_TO_USER` 标志，而 `AccessibilityInputFilter` 会直接放过不带这个标志的事件，所以服务根本看不到。
 - 于是改用 HID Consumer `0x89`（Media Select TV）。它在内核里变成 `KEY_TV`（377），`Generic.kl` 再把它映射成 `KEYCODE_TV`（170）。这台盒子上没有其他程序处理这个键，实测按下去没有任何副作用。
-- 原装斐讯遥控器的布局文件 `Vendor_7045_Product_1820.kl` 本来写的是 `key 116 POWER`，改成 `key 116 TV` 之后，它的电源键就和手机发的是同一个键了。这台机器的 `/system` 本来就是以 rw 挂载的，dm-verity 也没开。
+- 原装斐讯遥控器的布局文件 `Vendor_7045_Product_1820.kl` 本来写的是 `key 116 POWER`，改成 `key 116 TV` 之后，它的电源键就和手机发的是同一个键了。语音键是 `key 194 VOICE_ASSIST`，助手 1.4 起顺带改成 `key 194 MEDIA_PLAY_PAUSE`，和手机 App 的橙色键一致；两处在同一次修改里完成，助手只有两处都改好才显示「已改好」，所以从 1.3 升级后打开一次助手就会补上。改动后用 uhid 以 `7045:1820` 身份创建虚拟设备，Android 仍然选用这份布局文件，说明文件能正常解析（布局文件有一行写错，整份都不会加载）。真遥控器的语音键还没实测：这台盒子目前没和原装遥控器配对。这台机器的 `/system` 本来就是以 rw 挂载的，dm-verity 也没开。
 - TV 键用的是 HID Consumer `0x8D`（Program Guide）。它在内核里变成 `KEY_PROGRAM`（362），`Generic.kl` 再映射成 `GUIDE`，同样由助手截获。这个键用来通过 CEC 单独开关电视。
 - 布局文件的查找顺序是：先找 `/system/usr/keylayout/`，再找 `/data/system/devices/keylayout/`（`libinput.so` 里的路径字符串就是这个顺序）。
 
@@ -109,6 +109,8 @@
 
 - **扫描找盒子**（App 2.5.0 起的「查找」）：盒子只有在手机版设置的蓝牙页面打开时才能被搜到（`android.settings.BLUETOOTH_SETTINGS` 对应 `com.android.settings/.Settings$BluetoothSettingsActivity`）。打开后，手机的经典蓝牙扫描能扫到它，名字是 `p230`（N1 的型号），类型是经典蓝牙（`DEVICE_TYPE_CLASSIC`）。实测一次扫描大约 12 秒，周围扫到约 80 个设备，其中约 75 个是只支持 BLE 的设备（大多没有名字），列表里直接过滤掉了。扫描权限用 `BLUETOOTH_SCAN` 加 `neverForLocation`，Android 12 起不需要定位权限。
 
-- 语音键：键值是 `VOICE_ASSIST`。系统会去启动 `android.speech.action.WEB_SEARCH`，但这台盒子上没有能处理它的应用。原装遥控器的布局文件里语音键也映射成这个值，结果应该一样。
+- 第 7 位原来是语音键（0xCF Voice Command → `VOICE_ASSIST`）。盒子上没有任何应用处理 `VOICE_SEARCH_HANDS_FREE`、`VOICE_ASSIST`、`ASSIST` 或 `WEB_SEARCH`，`settings get secure assistant` 也是空的，所以按了没反应；N1 本身也没有麦克风。
+- 2.6.0 起第 7 位改成播放/暂停（0xCD Play/Pause）。用 uhid 虚拟设备和新描述符在盒子上验证过：内核报 `KEY_PLAYPAUSE`（扫描码 164），`Generic.kl` 映射成 `MEDIA_PLAY_PAUSE`（键值 85）。它和普通按键一样分发，前台播放器先收到，没处理的话 PhoneWindowManager 再交给媒体会话。
+- 为什么不让助手把语音键「翻译」成播放/暂停：无障碍服务不能发按键；用 root 跑 `input keyevent` 要启动 Java 进程，在 N1 上慢；用 `sendevent` 往 `aml_keypad` 写 164 也不行，因为它用的 `Vendor_0001_Product_0001.kl` 没有映射 164，要改系统分区。改描述符是最干净的，代价是已配对的盒子要执行一次 `update-descriptor`（或重新配对）。没更新之前，这一位还是旧的语音键，按了没反应，不会出错。
 - 测试用的这台小米手机，实体音量 + 键的中断计数开机 5 天一直是 0（`/proc/interrupts` 里的 `volume_up`），键本身是坏的。所以「手机音量键转发给盒子」这个功能只写了代码，还没用实体键测通。
 - 盒子上有一个 `uiautomator`，可以配合 `input tap`，在没有遥控器的情况下操作界面（`tools/confirm_pairing.py` 就是这么做的）。小米手机要额外打开「USB 调试（安全设置）」，才允许 `input tap` 这类模拟点击。

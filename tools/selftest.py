@@ -10,6 +10,7 @@ paired over Bluetooth takes) and checks:
   - the TV key reaching the standby helper
   - standby: CPU capped at 500 MHz, other keys swallowed; then wake and CPU restored
   - with --phicomm: the patched Phicomm remote layout turns its power key into standby
+    and its voice key into play / pause
 
 The box screen moves around while it runs (about a minute) and ends on the home screen.
 Nothing is installed; only a copy of n1-tools.dex lands in /data/local/tmp. Needs the
@@ -41,7 +42,7 @@ KL = '/system/usr/keylayout/Vendor_7045_Product_1820.kl'
 # report bit -> (name, Linux key code, Android key code)
 KEYS = {
     1: ('MENU', '008b', 82), 2: ('OK', '0161', 23), 3: ('UP', '0067', 19), 4: ('DOWN', '006c', 20),
-    5: ('LEFT', '0069', 21), 6: ('RIGHT', '006a', 22), 7: ('VOICE', '0246', 231),
+    5: ('LEFT', '0069', 21), 6: ('RIGHT', '006a', 22), 7: ('PLAY/PAUSE', '00a4', 85),
     8: ('VOL+', '0073', 24), 9: ('VOL-', '0072', 25), 10: ('HOME', '00ac', 3), 11: ('BACK', '009e', 4),
 }
 LINUX_ALL = {v[1] for v in KEYS.values()} | {'0074', '0179', '016a'}  # + POWER, TV, PROGRAM
@@ -154,9 +155,13 @@ def main():
 
     if a.phicomm:
         print('Phicomm remote layout')
-        kl = shell(host, f"grep '^key 116' {KL}")
+        kl = shell(host, f"grep -E '^key (116|194) ' {KL}")
+        check(re.search(r'key 194\s+MEDIA_PLAY_PAUSE', kl) is not None, 'its voice key plays / pauses (key 194 MEDIA_PLAY_PAUSE)',
+              ' '.join(kl.split()) or 'missing')
+        # A layout with one bad line is not loaded at all, so "Android picks the Phicomm layout"
+        # below also proves the patched file still parses.
         if check(re.search(r'key 116\s+TV', kl) is not None, 'Phicomm layout patched (key 116 TV)',
-                 kl.strip() or 'missing'):
+                 ' '.join(kl.split()) or 'missing'):
             launch(host, '3000 0 w6000 0 w4000', env='UHID_ID=7045:1820')
             time.sleep(2.5)
             lay = shell(host, f'dumpsys input | grep -A9 ": {NAME}$" | grep KeyLayoutFile')
