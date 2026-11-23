@@ -91,7 +91,7 @@ After every boot and every helper update it checks again and repairs the setup i
 - **Touchpad**: the Touchpad button between the two power keys swaps the D-pad for a swipe area. **One swipe moves one item**, however long or fast. **Swipe and keep your finger resting** to keep moving, like holding a D-pad key; lift to stop. Movement starts about 0.75 s after your finger stops, and the pad turns blue to show it. A tap is OK. Tap "D-pad" to switch back; the app remembers your choice.
 - **Holding a key**: hold a D-pad or volume key and the box repeats it.
 
-## The original Phicomm remote
+## The original Phicomm remote, or a Xiaomi Bluetooth remote
 
 The original remote (device ID `7045:1820`) sends `KEY_POWER` for its power key. Android handles that key before any app sees it, so the helper never gets it. The first time the helper opens, it maps that key to the TV key in the remote's key layout, which makes it send the same key as the phone. It also turns the remote's voice key (which does nothing, the box has no voice app) into play / pause, like the orange key in the phone app (helper 1.4 and later). The helper's screen can switch both back any time. From a computer, these two commands do the same, also backing the file up first:
 
@@ -103,7 +103,9 @@ scripts/box.sh <box-ip> patch-remote
 scripts/box.sh <box-ip> unpatch-remote
 ```
 
-The second command restores it. The change is a single line, see [box-config/](box-config/): `key 116 POWER` → `key 116 TV`.
+The second command restores it. The exact lines are in [box-config/](box-config/).
+
+**Xiaomi Bluetooth voice remote** (device ID `2717:32b8`, helper 1.5 and later): the firmware has no layout of its own for it, and with `Generic.kl` its power key does nothing, its Home key does not go home (it arrives as the keyboard Home key) and its voice key sends F5. When the helper remaps the remotes it also adds a layout for this one: power toggles standby, Home goes home, voice plays / pauses, everything else unchanged. Its microphone uses Xiaomi's own protocol and does not work on this box. A layout is read when the remote connects, so reconnect the remote afterwards (turn the box's Bluetooth off and on, then press a key on the remote).
 
 Compatible remotes may use another device ID. After pairing, read its `vendor` and `product` from `dumpsys input` and write a `Vendor_XXXX_Product_YYYY.kl`. If `/system/usr/keylayout/` has no file for that ID, put it in `/data/system/devices/keylayout/` and leave the system partition alone.
 
@@ -214,7 +216,7 @@ It registers a virtual Bluetooth remote on the box, which takes exactly the same
 - the helper gets the TV key;
 - standby caps the CPU at 500 MHz and swallows other keys; wake restores it.
 
-With `--phicomm` it also checks the original remote's mapping, by posing as device ID `7045:1820` and pressing its power key twice.
+With `--phicomm` it also checks both remapped remotes: posing as device ID `7045:1820` (Phicomm) and `2717:32b8` (Xiaomi Bluetooth voice remote), it confirms Android uses the remapped layout and that pressing power twice enters standby and wakes.
 
 It takes about a minute. The box screen moves around meanwhile and ends on the home screen. Make sure nothing else holds the box's adb while it runs.
 

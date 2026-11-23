@@ -107,6 +107,12 @@
 
 ## 10. 其他
 
+- **小米蓝牙语音遥控器**（`2717:32b8`，BLE / HOGP，在盒子上叫「小米蓝牙语音遥控器」）：所有按键发的都是 HID 键盘页（0x07）的用法码。电源 0x070066（KEY_POWER），语音 0x07003E（KEY_F5），方向键 0x070052/50/4F/51，OK 0x070028（KEY_ENTER，这台固件的 `Generic.kl` 把 28 映射成 DPAD_CENTER），主页 0x07004A（KEY_HOME），返回 0x0700F1（KEY_BACK），菜单 0x070065（KEY_COMPOSE），音量 0x070080/81。Android 把它归为非字母键盘，所以不影响屏幕键盘弹出。
+  - 用 `Generic.kl` 时，主页键变成 MOVE_HOME（键盘上把光标移到行首），电源键因为 `power_key_definition=0` 没反应，语音键只是 F5。麦克风数据走 `/dev/hidraw*`，用的是小米自己的协议，`dumpsys input` 里 HasMic=false。
+  - 助手 1.5 起，从 `Generic.kl` 生成 `Vendor_2717_Product_32b8.kl`，只改 116→TV、102→HOME、63→MEDIA_PLAY_PAUSE。自检用 uhid 以 `2717:32b8` 创建虚拟设备，确认 Android 选用了这份布局，并且电源键能进入待机再唤醒。
+  - 按键布局只在设备连接时读取。关掉盒子蓝牙再打开以后，这个 BLE 遥控器要按一下键才会重新连上。
+- 助手启动时，用本机 adb 查询现在是不是待机。安装刚结束时 adbd 常常还被安装方占着，查询会失败；1.4 及之前失败了就当作「醒着」，待机中按方向键会作用到黑屏后面的桌面。1.5 起查询失败会每 10 秒重试一次，最多 5 次。
+
 - **扫描找盒子**（App 2.5.0 起的「查找」）：盒子只有在手机版设置的蓝牙页面打开时才能被搜到（`android.settings.BLUETOOTH_SETTINGS` 对应 `com.android.settings/.Settings$BluetoothSettingsActivity`）。打开后，手机的经典蓝牙扫描能扫到它，名字是 `p230`（N1 的型号），类型是经典蓝牙（`DEVICE_TYPE_CLASSIC`）。实测一次扫描大约 12 秒，周围扫到约 80 个设备，其中约 75 个是只支持 BLE 的设备（大多没有名字），列表里直接过滤掉了。扫描权限用 `BLUETOOTH_SCAN` 加 `neverForLocation`，Android 12 起不需要定位权限。
 
 - 第 7 位原来是语音键（0xCF Voice Command → `VOICE_ASSIST`）。盒子上没有任何应用处理 `VOICE_SEARCH_HANDS_FREE`、`VOICE_ASSIST`、`ASSIST` 或 `WEB_SEARCH`，`settings get secure assistant` 也是空的，所以按了没反应；N1 本身也没有麦克风。

@@ -13,9 +13,9 @@
     <string name="row_power">Native power key no longer shuts down</string>
     <string name="power_ok">Done</string>
     <string name="power_bad">Not set: the power key would really shut the box down</string>
-    <string name="row_remote">Original Phicomm remote</string>
-    <string name="remote_ok">Power key toggles standby, voice key plays / pauses</string>
-    <string name="remote_off">Left as is (power shuts down, voice does nothing)</string>
+    <string name="row_remote">Remote keys (Phicomm original, Xiaomi Bluetooth)</string>
+    <string name="remote_ok">Power toggles standby, voice plays / pauses, Xiaomi Home goes home</string>
+    <string name="remote_off">Left as is (Phicomm power shuts down, Xiaomi power and Home do nothing)</string>
     <string name="remote_none">No layout for that remote on this box</string>
     <string name="unknown">Unknown</string>
     <string name="row_state">Box state</string>
@@ -25,8 +25,8 @@
     <string name="summary_ok">All set. The power key on the phone app or the original remote now toggles standby.</string>
     <string name="summary_bad">Something is not done yet, see above.</string>
     <string name="btn_setup">Set up again</string>
-    <string name="btn_remote_patch">Remote: remap keys</string>
-    <string name="btn_remote_restore">Remote: restore</string>
+    <string name="btn_remote_patch">Remotes: remap keys</string>
+    <string name="btn_remote_restore">Remotes: restore</string>
     <string name="btn_remove">Restore and uninstall</string>
     <string name="remove_title">Restore and uninstall?</string>
     <string name="remove_message">This turns the helper off, sets the power key back to shutting down, restores the original remote layout and uninstalls the helper.</string>

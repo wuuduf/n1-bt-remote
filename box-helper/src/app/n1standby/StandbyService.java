@@ -77,11 +77,27 @@ public final class StandbyService extends AccessibilityService {
     @Override
     protected void onServiceConnected() {
         running = true;
+        readStandby(0);
+    }
+
+    /**
+     * Learns whether the box is in standby (the marker file), which decides whether other keys
+     * get swallowed. Right after an update adbd is often still held by whoever installed us and
+     * every attempt times out; then the flag stayed "awake" while the box was in standby, so
+     * D-pad presses reached the hidden launcher. Try again a little later until it answers.
+     */
+    private void readStandby(int attempt) {
         io.execute(() -> {
             String out = sh(QUERY);
             main.post(() -> {
-                if (out != null) standby = out.contains("standby");
-                Log.i(TAG, "connected, standby=" + standby);
+                if (out != null) {
+                    standby = out.contains("standby");
+                    Log.i(TAG, "connected, standby=" + standby);
+                } else if (attempt < 5) {
+                    main.postDelayed(() -> readStandby(attempt + 1), 10_000);
+                } else {
+                    Log.w(TAG, "connected, standby state unknown (no local adb)");
+                }
             });
         });
     }

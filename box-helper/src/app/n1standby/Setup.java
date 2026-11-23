@@ -35,7 +35,7 @@ final class Setup {
      * voice key (194, VOICE_ASSIST, which nothing on the box handles) to play / pause, like the
      * phone app. The factory file is kept the first time; the patch is checked before it lands.
      */
-    private static final String PATCH_REMOTE =
+    private static final String PATCH_PHICOMM =
             "if grep -q -E '^key (116 *POWER|194 *VOICE_ASSIST)$' " + KL + " 2>/dev/null; then "
             + "mount -o remount,rw /system 2>/dev/null; mkdir -p " + BAK + "; "
             + "[ -f " + BAK + "/Vendor_7045_Product_1820.kl.orig ] || cp " + KL + " " + BAK + "/Vendor_7045_Product_1820.kl.orig; "
@@ -44,7 +44,7 @@ final class Setup {
             + "grep -q '^key 116 *TV$' " + BAK + "/patched.kl && cat " + BAK + "/patched.kl > " + KL + "; "
             + "rm -f " + BAK + "/patched.kl; sync; fi; ";
 
-    private static final String UNPATCH_REMOTE =
+    private static final String UNPATCH_PHICOMM =
             "if grep -q -E '^key (116 *TV|194 *MEDIA_PLAY_PAUSE)$' " + KL + " 2>/dev/null; then "
             + "mount -o remount,rw /system 2>/dev/null; "
             + "if [ -f " + BAK + "/Vendor_7045_Product_1820.kl.orig ]; then cat " + BAK + "/Vendor_7045_Product_1820.kl.orig > " + KL + "; "
@@ -52,7 +52,38 @@ final class Setup {
             + KL + " > " + BAK + "/kl.tmp && cat " + BAK + "/kl.tmp > " + KL + "; rm -f " + BAK + "/kl.tmp; fi; "
             + "sync; fi; ";
 
-    /** Back to factory: helper disabled, power key shuts down, Phicomm remote untouched. */
+    /**
+     * Xiaomi Bluetooth voice remote (2717:32b8), often used with TV boxes. The firmware has no
+     * layout for it, so Generic.kl applies and three keys go wrong: power does nothing here
+     * (power_key_definition is 0), Home arrives as MOVE_HOME (the remote sends keyboard-page
+     * usages) and the voice key as F5 (its mic uses Xiaomi's own protocol over hidraw, which
+     * Android does not see). Our layout is Generic.kl with those three changed; its first line
+     * marks it as ours, so undoing never removes a layout someone else put there.
+     */
+    private static final String XM_KL = "/system/usr/keylayout/Vendor_2717_Product_32b8.kl";
+    private static final String GENERIC_KL = "/system/usr/keylayout/Generic.kl";
+    private static final String XM_MARK = "made from Generic.kl";
+
+    private static final String PATCH_XIAOMI =
+            "if [ ! -e " + XM_KL + " ] && grep -q '^key 102 *MOVE_HOME$' " + GENERIC_KL + " 2>/dev/null; then "
+            + "mount -o remount,rw /system 2>/dev/null; mkdir -p " + BAK + "; "
+            + "{ echo '# Xiaomi Bluetooth voice remote (2717:32b8) on the Phicomm N1, " + XM_MARK + " by the N1 standby helper.'; "
+            + "echo '# Changed: power -> TV (standby), Home -> HOME (Generic.kl has MOVE_HOME), voice (F5) -> play/pause.'; "
+            + "sed -e 's/^key 116\\( *\\)POWER$/key 116\\1TV/' -e 's/^key 102\\( *\\)MOVE_HOME$/key 102\\1HOME/' "
+            + "-e 's/^key 63\\( *\\)F5$/key 63\\1MEDIA_PLAY_PAUSE/' " + GENERIC_KL + "; } > " + BAK + "/xm.kl; "
+            + "[ \"$(grep -c -E '^key (116 +TV|102 +HOME|63 +MEDIA_PLAY_PAUSE)$' " + BAK + "/xm.kl)\" = 3 ] "
+            + "&& cat " + BAK + "/xm.kl > " + XM_KL + " && chmod 644 " + XM_KL + "; "
+            + "rm -f " + BAK + "/xm.kl; sync; fi; ";
+
+    private static final String UNPATCH_XIAOMI =
+            "if grep -q '" + XM_MARK + "' " + XM_KL + " 2>/dev/null; then "
+            + "mount -o remount,rw /system 2>/dev/null; rm -f " + XM_KL + "; sync; fi; ";
+
+    /** "Remap the remotes": the Phicomm remote and the Xiaomi remote together. */
+    private static final String PATCH_REMOTE = PATCH_PHICOMM + PATCH_XIAOMI;
+    private static final String UNPATCH_REMOTE = UNPATCH_PHICOMM + UNPATCH_XIAOMI;
+
+    /** Back to factory: helper disabled, power key shuts down, remote layouts as they came. */
     private static final String RESTORE =
             "cur=$(settings get secure enabled_accessibility_services); "
             + "new=$(echo \"$cur\" | sed -e 's#" + SVC + "##' -e 's/::*/:/g' -e 's/^://' -e 's/:$//' -e 's/^null$//'); "
@@ -63,10 +94,12 @@ final class Setup {
     private static final String STATUS =
             "echo acc=$(settings get secure enabled_accessibility_services); "
             + "echo pkd=$(settings get system power_key_definition); "
-            // kl=TV only when both keys are remapped; POWER = factory or half done; empty = no such layout
+            // kl=TV only when the Phicomm keys are remapped and the Xiaomi layout is in place (when
+            // this firmware's Generic.kl needs it); POWER = factory or half done; empty = no layout
             + "if [ -f " + KL + " ]; then p=$(grep '^key 116' " + KL + " | tr -s ' ' | cut -d' ' -f3); "
             + "v=$(grep '^key 194' " + KL + " | tr -s ' ' | cut -d' ' -f3); "
-            + "if [ \"$p\" = TV ] && [ \"$v\" != VOICE_ASSIST ]; then echo kl=TV; else echo kl=${p:+POWER}; fi; "
+            + "if [ \"$p\" = TV ] && [ \"$v\" != VOICE_ASSIST ] && { [ -e " + XM_KL + " ] "
+            + "|| ! grep -q '^key 102 *MOVE_HOME$' " + GENERIC_KL + "; }; then echo kl=TV; else echo kl=${p:+POWER}; fi; "
             + "else echo kl=none; fi; "
             + "[ -e " + MARK + " ] && echo state=standby || echo state=awake; "
             + "echo fw=$(getprop ro.build.display.id)";
@@ -74,7 +107,7 @@ final class Setup {
     /** What the box looks like right now; adbOk false means none of the rest is known. */
     static final class Status {
         boolean adbOk, accessibility, powerKeySafe, standby;
-        String remote = "none"; // "TV" (both keys remapped), "POWER" (not, or only half) or "none" (no such layout)
+        String remote = "none"; // "TV" (remotes remapped), "POWER" (not, or only partly) or "none" (no Phicomm layout)
         String firmware = "";
 
         boolean ready() {

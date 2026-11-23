@@ -4,9 +4,11 @@
 #   scripts/box.sh <box-ip> install-helper     install the standby helper and open it once; it sets
 #                                              itself up (or install the APK any other way and open
 #                                              "N1 standby helper" on the box)
-#   scripts/box.sh <box-ip> patch-remote       make the Phicomm remote's power key send TV
-#                                              (the helper's screen does this too); backs up first
-#   scripts/box.sh <box-ip> unpatch-remote     restore the original Phicomm key layout
+#   scripts/box.sh <box-ip> patch-remote       remap remote keys (the helper's screen does this too):
+#                                              Phicomm remote power -> TV, voice -> play/pause (backs
+#                                              up first); adds a layout for the Xiaomi Bluetooth voice
+#                                              remote: power -> TV, Home -> HOME, voice -> play/pause
+#   scripts/box.sh <box-ip> unpatch-remote     restore the Phicomm layout, remove our Xiaomi layout
 #   scripts/box.sh <box-ip> status             helper, power key setting, standby state
 #   scripts/box.sh <box-ip> update-descriptor <phone-mac>  after an app update that adds keys:
 #                                              swap the descriptor the box stored, no re-pairing
@@ -22,6 +24,8 @@ usage() { sed -n '2,/^set -euo/p' "$0" | grep '^#' | sed 's/^# \{0,1\}//'; exit 
 HOST=$1 CMD=$2 T="$1:5555"
 
 KL=/system/usr/keylayout/Vendor_7045_Product_1820.kl
+XM=/system/usr/keylayout/Vendor_2717_Product_32b8.kl   # Xiaomi Bluetooth voice remote
+GEN=/system/usr/keylayout/Generic.kl
 BAK=/data/local/tmp/btbak
 SVC=app.n1standby/app.n1standby.StandbyService
 
@@ -57,17 +61,30 @@ install-helper)
     ;;
 patch-remote)
     sh_ "mount -o remount,rw /system 2>/dev/null; mkdir -p $BAK
-         grep -q -E '^key (116 *POWER|194 *VOICE_ASSIST)\$' $KL || { grep -q '^key 116 *TV\$' $KL && echo 'already patched' && exit 0; echo 'unexpected layout, not touching it'; exit 1; }
-         [ -f $BAK/Vendor_7045_Product_1820.kl.orig ] || cp $KL $BAK/Vendor_7045_Product_1820.kl.orig
-         sed -e 's/^key 116\\( *\\)POWER\$/key 116\\1TV/' -e 's/^key 194\\( *\\)VOICE_ASSIST\$/key 194\\1MEDIA_PLAY_PAUSE/' $KL > $BAK/patched.kl
-         grep -q '^key 116 *TV\$' $BAK/patched.kl && cat $BAK/patched.kl > $KL && sync
-         rm -f $BAK/patched.kl; grep -E '^key (116|194) ' $KL
-         echo 'patched; re-pair or reconnect the remote for it to take effect'"
+         if grep -q -E '^key (116 *POWER|194 *VOICE_ASSIST)\$' $KL; then
+           [ -f $BAK/Vendor_7045_Product_1820.kl.orig ] || cp $KL $BAK/Vendor_7045_Product_1820.kl.orig
+           sed -e 's/^key 116\\( *\\)POWER\$/key 116\\1TV/' -e 's/^key 194\\( *\\)VOICE_ASSIST\$/key 194\\1MEDIA_PLAY_PAUSE/' $KL > $BAK/patched.kl
+           grep -q '^key 116 *TV\$' $BAK/patched.kl && cat $BAK/patched.kl > $KL && sync
+           rm -f $BAK/patched.kl
+         elif ! grep -q '^key 116 *TV\$' $KL 2>/dev/null; then echo 'phicomm: unexpected layout, not touching it'; fi
+         echo \"phicomm: \$(grep -E '^key (116|194) ' $KL 2>/dev/null | tr -s ' ' | tr '\\n' ' ')\"
+         if [ -e $XM ]; then echo 'xiaomi: layout already there'
+         elif grep -q '^key 102 *MOVE_HOME\$' $GEN; then
+           { echo '# Xiaomi Bluetooth voice remote (2717:32b8) on the Phicomm N1, made from Generic.kl by scripts/box.sh.'
+             echo '# Changed: power -> TV (standby), Home -> HOME (Generic.kl has MOVE_HOME), voice (F5) -> play/pause.'
+             sed -e 's/^key 116\\( *\\)POWER\$/key 116\\1TV/' -e 's/^key 102\\( *\\)MOVE_HOME\$/key 102\\1HOME/' -e 's/^key 63\\( *\\)F5\$/key 63\\1MEDIA_PLAY_PAUSE/' $GEN; } > $BAK/xm.kl
+           if [ \"\$(grep -c -E '^key (116 +TV|102 +HOME|63 +MEDIA_PLAY_PAUSE)\$' $BAK/xm.kl)\" = 3 ]; then
+             cat $BAK/xm.kl > $XM && chmod 644 $XM && sync && echo 'xiaomi: layout added'
+           else echo 'xiaomi: Generic.kl looks different, skipped'; fi
+           rm -f $BAK/xm.kl
+         fi
+         echo 'reconnect the remotes (or re-pair) for the layouts to take effect'"
     ;;
 unpatch-remote)
     sh_ "mount -o remount,rw /system 2>/dev/null
          if [ -f $BAK/Vendor_7045_Product_1820.kl.orig ]; then cat $BAK/Vendor_7045_Product_1820.kl.orig > $KL
          else sed -e 's/^key 116\\( *\\)TV\$/key 116\\1POWER/' -e 's/^key 194\\( *\\)MEDIA_PLAY_PAUSE\$/key 194\\1VOICE_ASSIST/' $KL > /data/local/tmp/kl.tmp && cat /data/local/tmp/kl.tmp > $KL && rm /data/local/tmp/kl.tmp; fi
+         grep -q 'made from Generic.kl' $XM 2>/dev/null && rm -f $XM && echo 'xiaomi: our layout removed'
          sync; grep -E '^key (116|194) ' $KL"
     ;;
 status)
@@ -76,6 +93,7 @@ status)
          echo \"accessibility:      \$(settings get secure enabled_accessibility_services)\"
          echo \"power_key_definition: \$(settings get system power_key_definition)  (0 none, 1 shutdown, 2 reboot)\"
          echo \"phicomm remote:     \$(grep -E '^key (116|194) ' $KL | tr -s ' ' | tr '\\n' ' ')\"
+         [ -e $XM ] && echo \"xiaomi remote:      \$(grep -E '^key (116|102|63) ' $XM | tr -s ' ' | tr '\\n' ' ')\" || echo 'xiaomi remote:      no layout of its own (Generic.kl)'
          [ -e /dev/.n1remote_standby ] && echo 'state:              standby' || echo 'state:              awake'
          logcat -d | grep N1Standby | tail -3"
     ;;

@@ -13,9 +13,9 @@
     <string name="row_power">原生电源键不再关机</string>
     <string name="power_ok">已设置</string>
     <string name="power_bad">未设置：按电源键会真关机</string>
-    <string name="row_remote">原装斐讯遥控器</string>
-    <string name="remote_ok">电源键改为待机，语音键改为播放/暂停</string>
-    <string name="remote_off">保持原样（电源键会关机，语音键没反应）</string>
+    <string name="row_remote">遥控器改键（斐讯原装、小米蓝牙）</string>
+    <string name="remote_ok">电源键改为待机，语音键改为播放/暂停，小米遥控器的主页键能回桌面</string>
+    <string name="remote_off">保持原样（斐讯遥控器电源键会关机，小米遥控器电源和主页键无效）</string>
     <string name="remote_none">这台盒子上没有这个遥控器的配置</string>
     <string name="unknown">未知</string>
     <string name="row_state">盒子状态</string>
@@ -25,8 +25,8 @@
     <string name="summary_ok">一切就绪。用手机 App 或原装遥控器的电源键就能待机 / 唤醒。</string>
     <string name="summary_bad">还有项目没完成，见上面的说明。</string>
     <string name="btn_setup">重新设置</string>
-    <string name="btn_remote_patch">原装遥控器：改键</string>
-    <string name="btn_remote_restore">原装遥控器：改回原样</string>
+    <string name="btn_remote_patch">遥控器：改键</string>
+    <string name="btn_remote_restore">遥控器：改回原样</string>
     <string name="btn_remove">还原并卸载</string>
     <string name="remove_title">还原并卸载？</string>
     <string name="remove_message">这会关闭助手，把电源键改回「关机」，还原原装遥控器的配置，然后卸载助手。</string>

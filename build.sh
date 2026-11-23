@@ -69,10 +69,10 @@ tools() {
 
 case "${1:-all}" in
     app)    apk app app 28 34 11 2.6.0 dist/n1-remote.apk ;;
-    helper) apk helper box-helper 24 25 5 1.4 dist/n1-standby-helper.apk ;;
+    helper) apk helper box-helper 24 25 6 1.5 dist/n1-standby-helper.apk ;;
     tools)  tools ;;
     all)    apk app app 28 34 11 2.6.0 dist/n1-remote.apk
-            apk helper box-helper 24 25 5 1.4 dist/n1-standby-helper.apk
+            apk helper box-helper 24 25 6 1.5 dist/n1-standby-helper.apk
             tools ;;
     *)      echo "usage: $0 [app|helper|tools|all]" >&2; exit 2 ;;
 esac

@@ -9,7 +9,8 @@ paired over Bluetooth takes) and checks:
   - a held key repeating on the box
   - the TV key reaching the standby helper
   - standby: CPU capped at 500 MHz, other keys swallowed; then wake and CPU restored
-  - with --phicomm: the patched Phicomm remote layout turns its power key into standby
+  - with --phicomm: the remapped remote layouts: the Phicomm remote's power key and the
+    Xiaomi Bluetooth voice remote's power key both toggle standby
     and its voice key into play / pause
 
 The box screen moves around while it runs (about a minute) and ends on the home screen.
@@ -38,6 +39,7 @@ CPU = '/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq'
 MARK = '/dev/.n1remote_standby'
 SVC = 'app.n1standby/app.n1standby.StandbyService'
 KL = '/system/usr/keylayout/Vendor_7045_Product_1820.kl'
+XM = '/system/usr/keylayout/Vendor_2717_Product_32b8.kl'  # Xiaomi Bluetooth voice remote
 
 # report bit -> (name, Linux key code, Android key code)
 KEYS = {
@@ -84,7 +86,8 @@ def helper_log(host):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument('host', help='box IP address')
-    ap.add_argument('--phicomm', action='store_true', help='also test the patched Phicomm remote layout')
+    ap.add_argument('--phicomm', action='store_true',
+                    help='also test the remapped remote layouts (Phicomm and Xiaomi)')
     a = ap.parse_args()
     host = a.host
 
@@ -166,6 +169,21 @@ def main():
             time.sleep(2.5)
             lay = shell(host, f'dumpsys input | grep -A9 ": {NAME}$" | grep KeyLayoutFile')
             check('Vendor_7045_Product_1820.kl' in lay, 'Android picks the Phicomm layout for ID 7045:1820')
+            wait_done(host, 18)
+            log = helper_log(host)
+            check(any('toggled -> standby' in l for l in log) and any('toggled -> awake' in l for l in log),
+                  'its power key puts the box into standby and wakes it')
+
+        print('Xiaomi Bluetooth voice remote layout')
+        xm = shell(host, f"grep -E '^key (116|102|63) ' {XM} 2>/dev/null")
+        want = [r'key 116\s+TV', r'key 102\s+HOME', r'key 63\s+MEDIA_PLAY_PAUSE']
+        if check(all(re.search(w, xm) for w in want),
+                 'Xiaomi layout: power -> TV, Home -> HOME, voice -> MEDIA_PLAY_PAUSE', ' '.join(xm.split()) or 'missing'):
+            # Same virtual remote, posing as the Xiaomi one: its power usage is KEY_POWER (116).
+            launch(host, '3000 0 w6000 0 w4000', env='UHID_ID=2717:32b8')
+            time.sleep(2.5)
+            lay = shell(host, f'dumpsys input | grep -A9 ": {NAME}$" | grep KeyLayoutFile')
+            check('Vendor_2717_Product_32b8.kl' in lay, 'Android picks the Xiaomi layout for ID 2717:32b8')
             wait_done(host, 18)
             log = helper_log(host)
             check(any('toggled -> standby' in l for l in log) and any('toggled -> awake' in l for l in log),
